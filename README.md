@@ -41,7 +41,13 @@ Base de données locale (Docker requis) :
 ```sh
 pnpm exec supabase start
 pnpm exec supabase db reset
+pnpm exec supabase test db    # tests pgTAP : isolement, rôles, intégrité
 ```
+
+Sans Docker, avec un Postgres 16 local : `PGHOST=… PGPORT=… PGUSER=postgres scripts/db-local/run-tests.sh`.
+
+Utilisateurs de démo (code SMS `123456` en local) : dirigeant `+33 6 39 98 00 01`,
+chef d'équipe `+33 6 39 98 00 02`, poseur `+33 6 39 98 00 03`.
 
 ## Avancement
 
@@ -49,6 +55,6 @@ pnpm exec supabase db reset
 | ------- | --------------------------- | -------- |
 | S1      | Monorepo et outillage       | Terminée |
 | S2      | Design system               | Terminée |
-| S3      | Base de données et sécurité | À faire  |
+| S3      | Base de données et sécurité | Terminée |
 
 Le plan complet (19 sessions, 5 phases) est dans la section 18 du cahier des charges.

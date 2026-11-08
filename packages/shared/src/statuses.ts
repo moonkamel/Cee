@@ -23,6 +23,10 @@ export const PROOF_SLOT_STATUSES = [
 ] as const;
 export type ProofSlotStatus = (typeof PROOF_SLOT_STATUSES)[number];
 
+/** Phase d'une preuve dans le chantier (section 7). */
+export const PROOF_PHASES = ['avant', 'pendant', 'apres'] as const;
+export type ProofPhase = (typeof PROOF_PHASES)[number];
+
 /** Résultat d'un contrôle subi (sections 5 et 10). */
 export const INSPECTION_RESULTS = ['satisfactory', 'unsatisfactory', 'unverifiable'] as const;
 export type InspectionResult = (typeof INSPECTION_RESULTS)[number];

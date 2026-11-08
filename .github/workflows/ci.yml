@@ -36,3 +36,20 @@ jobs:
 
       - name: Tests
         run: pnpm test
+
+  database:
+    name: Base de données (migrations, seed, tests RLS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Auth et Storage sont nécessaires (schémas auth et storage) ; le reste est inutile ici.
+      - name: Démarrer Supabase (migrations + seed)
+        run: supabase start -x studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor,mailpit,postgres-meta
+
+      - name: Tests pgTAP
+        run: supabase test db
