@@ -48,7 +48,7 @@ pnpm exec supabase db reset
 | Session | Contenu                     | État     |
 | ------- | --------------------------- | -------- |
 | S1      | Monorepo et outillage       | Terminée |
-| S2      | Design system               | À faire  |
+| S2      | Design system               | Terminée |
 | S3      | Base de données et sécurité | À faire  |
 
 Le plan complet (19 sessions, 5 phases) est dans la section 18 du cahier des charges.

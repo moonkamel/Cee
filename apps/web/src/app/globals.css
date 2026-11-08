@@ -1,14 +1,18 @@
 @import 'tailwindcss';
+@import '@fontsource/atkinson-hyperlegible/400.css';
+@import '@fontsource/atkinson-hyperlegible/700.css';
 
 /* Les valeurs des couleurs viennent de @preuvio/ui-tokens (voir tokens.ts). */
 @theme {
   --color-action: initial;
+  --color-on-action: initial;
   --color-brand: initial;
   --color-ok: initial;
   --color-warn: initial;
   --color-ko: initial;
   --color-bg: initial;
   --color-surface: initial;
+  --color-border: initial;
   --color-text: initial;
   --color-text-muted: initial;
   --font-sans: 'Atkinson Hyperlegible', Inter, ui-sans-serif, system-ui, sans-serif;
