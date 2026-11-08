@@ -78,5 +78,6 @@ jobs:
           eval "$(supabase status -o env)"
           export SUPABASE_URL="$API_URL"
           export SUPABASE_ANON_KEY="${ANON_KEY:-$PUBLISHABLE_KEY}"
+          export REQUIRE_SUPABASE=1
           test -n "$SUPABASE_ANON_KEY" || { echo "Clé publique introuvable dans supabase status"; exit 1; }
           pnpm --filter @preuvio/shared exec vitest run src/sync/supabase.integration.test.ts

@@ -270,6 +270,24 @@ export function createSyncEngine({
       return running;
     },
 
+    /** Modifications refusées par le serveur, avec leur motif (affichage, diagnostic). */
+    async rejectedItems(): Promise<
+      { table: SyncedTable; rowId: string; op: string; error: string }[]
+    > {
+      const rows = await db.all<{
+        tbl: SyncedTable;
+        row_id: string;
+        op: string;
+        last_error: string | null;
+      }>("select tbl, row_id, op, last_error from outbox where status = 'rejected' order by seq");
+      return rows.map((r) => ({
+        table: r.tbl,
+        rowId: r.row_id,
+        op: r.op,
+        error: r.last_error ?? '',
+      }));
+    },
+
     /** Valeur mémorisée sur le téléphone (ex. propriétaire des données locales). */
     getMeta: (key: string) => getState(`meta:${key}`),
     setMeta: (key: string, value: string) => setState(`meta:${key}`, value),

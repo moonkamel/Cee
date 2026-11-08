@@ -13,8 +13,9 @@ import type { Remote } from './types';
 const url = process.env.SUPABASE_URL;
 const anonKey = process.env.SUPABASE_ANON_KEY;
 
-// En CI, un test ignoré faute de configuration ne doit jamais passer pour un succès.
-if (process.env.CI && (!url || !anonKey)) {
+// Dans le job qui lance Supabase, un test ignoré faute de configuration ne doit jamais
+// passer pour un succès (REQUIRE_SUPABASE n'est défini que là).
+if (process.env.REQUIRE_SUPABASE && (!url || !anonKey)) {
   throw new Error('SUPABASE_URL et SUPABASE_ANON_KEY sont requis en CI');
 }
 
@@ -73,6 +74,7 @@ describe.skipIf(!url || !anonKey)('synchronisation contre Supabase', () => {
 
     online = true;
     const report = await engine.sync({ force: true });
+    expect(await engine.rejectedItems()).toEqual([]);
     expect(report).toMatchObject({ pushed: 3, rejected: 0, offline: false });
 
     // Le dirigeant voit le chantier, rangé dans son entreprise, signé du poseur.

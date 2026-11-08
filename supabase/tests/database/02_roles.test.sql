@@ -1,7 +1,7 @@
 -- Matrice des rôles (section 14) : poseur, chef d'équipe, bureau, admin, dirigeant.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(33);
 
 -- ===== Données de test (identiques dans chaque fichier, annulées par le rollback) =====
 -- Entreprise A : owner, admin, office, lead + poseur (équipe A1), poseur sans équipe.
@@ -143,6 +143,11 @@ select lives_ok(
     values ('a4000000-0000-4000-8000-000000000010', 'a1000000-0000-4000-8000-000000000005')$$,
   'le poseur crée un chantier sur le terrain et s''y affecte');
 select is((select count(*) from public.jobsites), 2::bigint, 'le poseur voit le chantier qu''il vient de créer');
+-- L'API Supabase relit la ligne insérée (RETURNING) : la règle de lecture doit l'accepter
+-- dans la même instruction, avant que le chantier soit visible des autres requêtes.
+select lives_ok(
+  $$insert into public.jobsites (id, address, status) values ('a4000000-0000-4000-8000-000000000011', 'Hors ligne', 'in_progress') returning id$$,
+  'le poseur crée un chantier comme le fait l''API (insert … returning)');
 select throws_ok(
   $$update public.proof_slots set status = 'manually_validated' where id = 'a7000000-0000-4000-8000-000000000001'$$,
   '42501', null, 'le poseur ne tranche pas une preuve');
@@ -199,7 +204,10 @@ select throws_ok(
 
 -- Bureau ------------------------------------------------------------------------------------
 set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000003","role":"authenticated"}';
-select is((select count(*) from public.jobsites), 3::bigint, 'le bureau voit tous les chantiers de l''entreprise');
+select is((select count(*) from public.jobsites), 4::bigint, 'le bureau voit tous les chantiers de l''entreprise');
+select lives_ok(
+  $$insert into public.jobsites (id, address) values ('a4000000-0000-4000-8000-000000000012', 'Saisi au bureau') returning id$$,
+  'le bureau crée un chantier comme le fait l''API (insert … returning)');
 select throws_ok(
   $$insert into public.photos (jobsite_id, author_id, device_taken_at, sha256, original_path)
     values ('a4000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000003', now(), repeat('f', 64), 'p.jpg')$$,

@@ -125,6 +125,9 @@ describe('file d’envoi', () => {
     expect(report.rejected).toBe(1);
     expect(report.pushed).toBe(2);
     expect(await engine.status()).toMatchObject({ pending: 0, rejected: 1 });
+    expect(await engine.rejectedItems()).toEqual([
+      { table: 'clients', rowId: expect.any(String), op: 'insert', error: 'refusé' },
+    ]);
   });
 
   it('n’envoie que les champs serveur : les champs locaux « _ » restent sur le téléphone', async () => {
