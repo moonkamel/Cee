@@ -7,6 +7,7 @@ import type {
   Role,
   SyncStatus,
   TodayJobsiteInput,
+  UploadBlock,
   WorkType,
 } from '@preuvio/shared';
 
@@ -69,6 +70,13 @@ export type CachedResult<T> = {
   fetchedAt: string;
 };
 
+/** État de synchronisation, avec les photos dont l'original n'est pas encore confirmé. */
+export type AppSyncStatus = SyncStatus & {
+  photosWaiting: number;
+  /** Envoi des photos en pause : batterie faible, attente du Wi-Fi, hors ligne. */
+  uploadBlocked: UploadBlock | null;
+};
+
 export type NewJobsite = Pick<QuickJobsiteInput, 'address' | 'workTypes' | 'client'>;
 
 /**
@@ -85,8 +93,12 @@ export interface DataSource {
   listPhotos(jobsiteId: string): Promise<PhotoSummary[]>;
   /** Enregistre la photo et met la preuve à « capturée » ; tout part au serveur ensuite. */
   recordPhoto(input: RecordPhotoInput): Promise<void>;
-  syncStatus(): Promise<SyncStatus>;
+  syncStatus(): Promise<AppSyncStatus>;
+  /** Synchronise et envoie les photos tout de suite (geste de l'utilisateur). */
   syncNow(): Promise<void>;
+  /** Réglage « envoyer les photos en Wi-Fi uniquement » (désactivé par défaut). */
+  getWifiOnly(): Promise<boolean>;
+  setWifiOnly(value: boolean): Promise<void>;
   /** Prévient quand les données locales ou l'état de synchronisation changent. */
   onChange(listener: () => void): () => void;
   /** Efface tout (déconnexion). */

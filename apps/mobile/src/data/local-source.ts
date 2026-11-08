@@ -1,6 +1,7 @@
 import {
   buildPhotoRow,
   buildQuickJobsite,
+  photosToUpload,
   slotNeedsPhoto,
   type PhotoSource,
   type ProofPhase,
@@ -11,7 +12,9 @@ import {
   type WorkType,
 } from '@preuvio/shared';
 import { localToday } from '@/lib/position';
+import { WIFI_ONLY_META } from './settings';
 import type { DataSource, Jobsite, PhotoSummary, Profile, ProofSlot } from './types';
+import type { UploadRunner } from './upload-runner';
 
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
@@ -80,12 +83,22 @@ export function createLocalSource({
   currentUserId,
   newId,
   deviceInfo = { model: null, appVersion: null },
+  uploads = null,
 }: {
   engine: SyncEngine;
   currentUserId: () => string | null;
   newId: () => string;
   deviceInfo?: { model: string | null; appVersion: string | null };
+  /** Envoi des photos (absent dans les tests qui n'en ont pas besoin). */
+  uploads?: UploadRunner | null;
 }): DataSource {
+  /** Synchronise, puis envoie les fichiers dont la fiche vient d'arriver au serveur. */
+  const syncThenUpload = (force = false) =>
+    void engine
+      .sync({ force })
+      .then(() => uploads?.run(force))
+      .catch(() => undefined);
+
   async function list() {
     const [jobsites, clients, operations, slots, status] = await Promise.all([
       engine.rows('jobsites'),
@@ -125,7 +138,7 @@ export function createLocalSource({
       await engine.write('jobsites', 'insert', rows.jobsite);
       await engine.write('jobsite_assignees', 'insert', rows.assignee);
       // Envoi immédiat si le réseau est là ; sinon la file attend, sans bloquer l'écran.
-      void engine.sync().catch(() => undefined);
+      syncThenUpload();
       return String(rows.jobsite.id);
     },
 
@@ -178,14 +191,36 @@ export function createLocalSource({
           });
         }
       }
-      void engine.sync().catch(() => undefined);
+      syncThenUpload();
     },
 
-    syncStatus: () => engine.status(),
+    async syncStatus() {
+      const [status, photos] = await Promise.all([engine.status(), engine.rows('photos')]);
+      return {
+        ...status,
+        photosWaiting: photosToUpload(photos).length,
+        uploadBlocked: uploads?.blocked() ?? null,
+      };
+    },
     syncNow: async () => {
       await engine.sync({ force: true });
+      await uploads?.run(true);
     },
-    onChange: (listener) => engine.onChange(listener),
+    async getWifiOnly() {
+      return (await engine.getMeta(WIFI_ONLY_META)) === '1';
+    },
+    async setWifiOnly(value) {
+      await engine.setMeta(WIFI_ONLY_META, value ? '1' : '0');
+      if (!value) void uploads?.run(true).catch(() => undefined);
+    },
+    onChange(listener) {
+      const offEngine = engine.onChange(listener);
+      const offUploads = uploads?.onChange(listener);
+      return () => {
+        offEngine();
+        offUploads?.();
+      };
+    },
     reset: () => engine.reset(),
   };
 }

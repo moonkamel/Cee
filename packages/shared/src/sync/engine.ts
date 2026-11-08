@@ -227,6 +227,15 @@ export function createSyncEngine({
       notify();
     },
 
+    /** La ligne est arrivée sur le serveur : plus rien en file pour elle (ni en attente, ni refusé). */
+    async isSynced(table: SyncedTable, id: string): Promise<boolean> {
+      const rows = await db.all<{ n: number }>(
+        'select count(*) as n from outbox where tbl = ? and row_id = ?',
+        [table, id],
+      );
+      return (rows[0]?.n ?? 0) === 0;
+    },
+
     async status(): Promise<SyncStatus> {
       const counts = await db.all<{ status: string; n: number }>(
         'select status, count(*) as n from outbox group by status',

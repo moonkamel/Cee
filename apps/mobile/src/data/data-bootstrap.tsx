@@ -9,6 +9,7 @@ import { DataProvider } from './data-context';
 import { openLocalDb } from './expo-sqlite-db';
 import { createLocalSource } from './local-source';
 import { startSyncScheduler } from './sync-scheduler';
+import { createUploadRunner } from './upload-runner';
 
 /**
  * Ouvre la base locale, puis synchronise tant qu'un utilisateur est connecté.
@@ -18,6 +19,7 @@ export function DataBootstrap({ children }: { children: ReactNode }) {
   const { userId, status } = useAuth();
   const [engine, setEngine] = useState<SyncEngine | null>(null);
   const [owner, setOwner] = useState<string | null | undefined>(undefined);
+  const uploads = useMemo(() => (engine ? createUploadRunner(engine) : null), [engine]);
 
   useEffect(() => {
     let alive = true;
@@ -36,7 +38,7 @@ export function DataBootstrap({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!engine || status !== 'signedIn' || !userId) return;
+    if (!engine || !uploads || status !== 'signedIn' || !userId) return;
     let stop: (() => void) | null = null;
     let alive = true;
     void (async () => {
@@ -45,13 +47,13 @@ export function DataBootstrap({ children }: { children: ReactNode }) {
         await engine.setMeta('owner', userId);
         if (alive) setOwner(userId);
       }
-      if (alive) stop = startSyncScheduler(engine);
+      if (alive) stop = startSyncScheduler(engine, uploads);
     })();
     return () => {
       alive = false;
       stop?.();
     };
-  }, [engine, status, userId, owner]);
+  }, [engine, uploads, status, userId, owner]);
 
   const source = useMemo(
     () =>
@@ -64,9 +66,10 @@ export function DataBootstrap({ children }: { children: ReactNode }) {
               model: Device.modelName ?? null,
               appVersion: Application.nativeApplicationVersion ?? null,
             },
+            uploads,
           })
         : null,
-    [engine, userId],
+    [engine, uploads, userId],
   );
 
   if (!source) return null;

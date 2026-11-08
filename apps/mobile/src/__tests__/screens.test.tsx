@@ -4,6 +4,7 @@ import * as Location from 'expo-location';
 import { AuthProvider, type AuthService } from '@/auth/auth';
 import { DataProvider } from '@/data/data-context';
 import type {
+  AppSyncStatus,
   CachedResult,
   DataSource,
   Jobsite,
@@ -13,7 +14,6 @@ import type {
 } from '@/data/types';
 import { addressesNear } from '@/lib/geocoding';
 import { pickContact } from '@/lib/contacts';
-import type { SyncStatus } from '@preuvio/shared';
 import { localToday } from '@/lib/position';
 import { ThemeProvider } from '@/theme/theme';
 import TabsLayout from '../app/(tabs)/_layout';
@@ -94,7 +94,15 @@ let jobsites: CachedResult<Jobsite[]> = {
   stale: false,
   fetchedAt: new Date().toISOString(),
 };
-let syncStatus: SyncStatus = { pending: 0, rejected: 0, lastSyncAt: null, offline: false };
+const IDLE: AppSyncStatus = {
+  pending: 0,
+  rejected: 0,
+  lastSyncAt: null,
+  offline: false,
+  photosWaiting: 0,
+  uploadBlocked: null,
+};
+let syncStatus: AppSyncStatus = IDLE;
 const data: jest.Mocked<DataSource> = {
   listJobsites: jest.fn(async () => jobsites),
   cachedJobsites: jest.fn(async () => null),
@@ -110,6 +118,8 @@ const data: jest.Mocked<DataSource> = {
   recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
   syncStatus: jest.fn(async () => syncStatus),
   syncNow: jest.fn(async () => undefined),
+  getWifiOnly: jest.fn(async () => false),
+  setWifiOnly: jest.fn(async (_value: boolean) => undefined),
   onChange: jest.fn((_l: () => void) => () => undefined),
   reset: jest.fn(async () => undefined),
 };
@@ -158,7 +168,8 @@ beforeEach(() => {
   listener = null;
   withPosition(null);
   jobsites = { data: [], stale: false, fetchedAt: new Date().toISOString() };
-  syncStatus = { pending: 0, rejected: 0, lastSyncAt: null, offline: false };
+  syncStatus = IDLE;
+  data.getWifiOnly.mockResolvedValue(false);
 });
 
 // --- Critère de fin de S4 ------------------------------------------------------------------
@@ -263,11 +274,20 @@ describe('écran « Aujourd’hui »', () => {
       stale: true,
       fetchedAt: '2026-11-09T14:32:00',
     };
-    syncStatus = { pending: 3, rejected: 0, lastSyncAt: '2026-11-09T14:32:00', offline: true };
+    syncStatus = { ...IDLE, pending: 3, lastSyncAt: '2026-11-09T14:32:00', offline: true };
     await renderRouter(routes, { initialUrl: '/' });
     expect(await screen.findByText('Chantier en cache')).toBeTruthy();
     expect(
       await screen.findByText('Hors ligne · liste de 14 h 32 · 3 en attente d’envoi'),
+    ).toBeTruthy();
+  });
+
+  it('signale les photos en attente et la pause pour batterie faible', async () => {
+    jobsites.data = [jobsite({ id: 'a', address: 'Chantier' })];
+    syncStatus = { ...IDLE, photosWaiting: 2, uploadBlocked: 'battery' };
+    await renderRouter(routes, { initialUrl: '/' });
+    expect(
+      await screen.findByText('2 photos en attente d’envoi · Batterie faible : envoi en pause'),
     ).toBeTruthy();
   });
 
@@ -311,6 +331,31 @@ describe('écran « Aujourd’hui »', () => {
     expect(data.reset.mock.invocationCallOrder[0]).toBeLessThan(
       auth.signOut.mock.invocationCallOrder[0]!,
     );
+  });
+
+  it('avec des photos pas encore envoyées, la déconnexion demande un second tap', async () => {
+    syncStatus = { ...IDLE, photosWaiting: 2 };
+    const router = await renderRouter(routes, { initialUrl: '/me' });
+    expect(await screen.findByText('Jean Poseur')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Se déconnecter' }));
+    expect(
+      await screen.findByText('2 photo(s) non envoyée(s) : perdues si déconnexion'),
+    ).toBeTruthy();
+    expect(data.reset).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole('button', { name: 'Se déconnecter quand même' }));
+    await waitFor(() => expect(router.getPathname()).toBe('/welcome'));
+    expect(data.reset).toHaveBeenCalled();
+  });
+
+  it('« Wi-Fi uniquement » est désactivé par défaut et se règle d’un tap', async () => {
+    await renderRouter(routes, { initialUrl: '/me' });
+    const toggle = await screen.findByRole('switch', { name: 'Photos en Wi-Fi uniquement' });
+    expect(toggle.props.accessibilityState).toMatchObject({ checked: false });
+    await fireEvent.press(toggle);
+    expect(data.setWifiOnly).toHaveBeenCalledWith(true);
+    expect(
+      screen.getByRole('switch', { name: 'Photos en Wi-Fi uniquement' }).props.accessibilityState,
+    ).toMatchObject({ checked: true });
   });
 });
 

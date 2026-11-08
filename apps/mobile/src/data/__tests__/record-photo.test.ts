@@ -16,6 +16,9 @@ function fakeEngine(initial: Partial<Record<SyncedTable, Row[]>>) {
     status: async () => ({ pending: 0, rejected: 0, lastSyncAt: null, offline: false }),
     onChange: () => () => undefined,
     reset: async () => undefined,
+    meta: new Map<string, string>(),
+    getMeta: async (k: string) => engine.meta.get(k) ?? null,
+    setMeta: async (k: string, v: string) => void engine.meta.set(k, v),
   };
   return { engine, writes };
 }
@@ -100,5 +103,61 @@ describe('recordPhoto', () => {
       newId: () => 'x',
     });
     await expect(source.recordPhoto(input)).rejects.toThrow('Entreprise inconnue');
+  });
+});
+
+describe('envoi des photos (S7)', () => {
+  const uploads = () => ({
+    run: jest.fn(async () => ({ verified: 0, failed: 0, waiting: 0, blocked: null })),
+    blocked: () => 'battery' as const,
+    onChange: () => () => undefined,
+  });
+
+  it('compte les photos dont l’original attend la confirmation du serveur', async () => {
+    const { engine } = fakeEngine({
+      photos: [
+        { id: 'a', _localUri: 'file:///a.jpg', _upload: 'uploaded' },
+        { id: 'b', _localUri: null, _upload: 'verified' },
+        { id: 'c' }, // photo d'un collègue, reçue du serveur
+      ],
+    });
+    const source = createLocalSource({
+      engine: engine as never,
+      currentUserId: () => 'u1',
+      newId: () => 'x',
+      uploads: uploads(),
+    });
+    expect(await source.syncStatus()).toMatchObject({ photosWaiting: 1, uploadBlocked: 'battery' });
+  });
+
+  it('« Wi-Fi uniquement » : désactivé par défaut, mémorisé sur le téléphone', async () => {
+    const { engine } = fakeEngine({});
+    const runner = uploads();
+    const source = createLocalSource({
+      engine: engine as never,
+      currentUserId: () => 'u1',
+      newId: () => 'x',
+      uploads: runner,
+    });
+    expect(await source.getWifiOnly()).toBe(false);
+    await source.setWifiOnly(true);
+    expect(await source.getWifiOnly()).toBe(true);
+    // Retour aux données mobiles : les photos en attente partent tout de suite.
+    await source.setWifiOnly(false);
+    expect(runner.run).toHaveBeenCalledWith(true);
+  });
+
+  it('« Synchroniser » envoie aussi les photos, sans attendre le délai', async () => {
+    const { engine } = fakeEngine({});
+    const runner = uploads();
+    const source = createLocalSource({
+      engine: engine as never,
+      currentUserId: () => 'u1',
+      newId: () => 'x',
+      uploads: runner,
+    });
+    await source.syncNow();
+    expect(engine.sync).toHaveBeenCalledWith({ force: true });
+    expect(runner.run).toHaveBeenCalledWith(true);
   });
 });

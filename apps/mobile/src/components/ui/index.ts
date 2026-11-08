@@ -9,3 +9,4 @@ export { ShutterButton } from './ShutterButton';
 export { StatusPill } from './StatusPill';
 export { Toast } from './Toast';
 export { VoiceButton } from './VoiceButton';
+export { ToggleRow } from './ToggleRow';

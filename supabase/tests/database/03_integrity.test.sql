@@ -1,7 +1,7 @@
 -- Règles d'intégrité (sections 5, 13 et 16) : preuves inaltérables, journal d'audit en ajout seul.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(28);
 
 -- ===== Données de test (identiques dans chaque fichier, annulées par le rollback) =====
 -- Entreprise A : owner, admin, office, lead + poseur (équipe A1), poseur sans équipe.
@@ -162,6 +162,22 @@ select lives_ok(
 select lives_ok(
   $$update public.proof_slots set status = 'captured' where id = 'a7000000-0000-4000-8000-000000000001' returning id$$,
   'la preuve passe « capturée » après la photo');
+select lives_ok(
+  $$update public.photos set upload_status = 'uploaded' where id = 'a8000000-0000-4000-8000-000000000003' returning id$$,
+  'le poseur signale que le fichier est envoyé');
+select throws_ok(
+  $$update public.photos set upload_status = 'verified' where id = 'a8000000-0000-4000-8000-000000000003'$$,
+  '42501', null, 'le poseur ne marque pas lui-même sa photo vérifiée');
+reset role;
+select set_config('request.jwt.claims', '', true);
+update public.photos set upload_status = 'verified' where id = 'a8000000-0000-4000-8000-000000000003';
+select is((select upload_status from public.photos where id = 'a8000000-0000-4000-8000-000000000003'), 'verified',
+  'le serveur marque la photo vérifiée après contrôle de l''empreinte');
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"a1000000-0000-4000-8000-000000000005","role":"authenticated"}';
+update public.photos set upload_status = 'uploaded' where id = 'a8000000-0000-4000-8000-000000000003';
+select is((select upload_status from public.photos where id = 'a8000000-0000-4000-8000-000000000003'), 'verified',
+  'un envoi tardif du téléphone ne fait pas régresser une photo vérifiée');
 select is((select position from public.proof_slots where id = 'a7000000-0000-4000-8000-000000000001'), 0,
   'une preuve a une position dans son modèle (0 par défaut)');
 select lives_ok(

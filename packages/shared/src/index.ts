@@ -7,3 +7,4 @@ export * from './today';
 export * from './sync';
 export * from './photo';
 export * from './slots';
+export * from './upload';

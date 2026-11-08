@@ -56,14 +56,14 @@ jobs:
         with:
           version: latest
 
-      # Auth et Storage sont nécessaires (schémas auth et storage) ; le reste est inutile ici.
+      # Auth, Storage et Edge Functions (verify-photo, S7) sont nécessaires ; le reste est inutile ici.
       - name: Démarrer Supabase (migrations + seed)
-        run: supabase start -x studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor,mailpit,postgres-meta
+        run: supabase start -x studio,imgproxy,realtime,logflare,vector,supavisor,mailpit,postgres-meta
 
       - name: Tests pgTAP
         run: supabase test db
 
-      # Critère de S5 : chantier créé hors ligne, retrouvé sur le serveur (vrai Supabase).
+      # Critères de S5 (chantier créé hors ligne) et S7 (photo envoyée, empreinte contrôlée).
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
@@ -73,11 +73,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Synchronisation hors ligne contre Supabase
+      - name: Synchronisation et envoi des photos contre Supabase
         run: |
           eval "$(supabase status -o env)"
           export SUPABASE_URL="$API_URL"
           export SUPABASE_ANON_KEY="${ANON_KEY:-$PUBLISHABLE_KEY}"
           export REQUIRE_SUPABASE=1
           test -n "$SUPABASE_ANON_KEY" || { echo "Clé publique introuvable dans supabase status"; exit 1; }
-          pnpm --filter @preuvio/shared exec vitest run src/sync/supabase.integration.test.ts
+          pnpm --filter @preuvio/shared exec vitest run src/sync/supabase.integration.test.ts src/upload/supabase.integration.test.ts

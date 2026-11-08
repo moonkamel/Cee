@@ -82,8 +82,17 @@ const data: jest.Mocked<DataSource> = {
   listSlots: jest.fn(async (_jobsiteId: string) => slots),
   listPhotos: jest.fn(async (_jobsiteId: string) => photos),
   recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
-  syncStatus: jest.fn(async () => ({ pending: 0, rejected: 0, lastSyncAt: null, offline: false })),
+  syncStatus: jest.fn(async () => ({
+    pending: 0,
+    rejected: 0,
+    lastSyncAt: null,
+    offline: false,
+    photosWaiting: 0,
+    uploadBlocked: null,
+  })),
   syncNow: jest.fn(async () => undefined),
+  getWifiOnly: jest.fn(async () => false),
+  setWifiOnly: jest.fn(async (_value: boolean) => undefined),
   onChange: jest.fn((_listener: () => void) => () => undefined),
   reset: jest.fn(async () => undefined),
 };

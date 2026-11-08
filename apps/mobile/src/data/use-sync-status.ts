@@ -1,10 +1,10 @@
-import type { SyncStatus } from '@preuvio/shared';
 import { useEffect, useState } from 'react';
 import { useData } from './data-context';
+import type { AppSyncStatus } from './types';
 
-export function useSyncStatus(): SyncStatus | null {
+export function useSyncStatus(): AppSyncStatus | null {
   const data = useData();
-  const [status, setStatus] = useState<SyncStatus | null>(null);
+  const [status, setStatus] = useState<AppSyncStatus | null>(null);
   useEffect(() => {
     const load = () => void data.syncStatus().then(setStatus, () => undefined);
     load();
