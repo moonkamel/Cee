@@ -8,3 +8,4 @@ dist/
 .env.*
 !.env.example
 !apps/mobile/.env
+supabase/functions/deno.lock
