@@ -63,5 +63,6 @@ chef d'équipe `+33 6 39 98 00 02`, poseur `+33 6 39 98 00 03`.
 | S5      | Hors ligne et synchronisation      | Terminée |
 | S6      | Caméra et checklist                | Terminée |
 | S7      | Envoi des photos                   | Terminée |
+| S8      | Moteur de checklists               | Terminée |
 
 Le plan complet (19 sessions, 5 phases) est dans la section 18 du cahier des charges.

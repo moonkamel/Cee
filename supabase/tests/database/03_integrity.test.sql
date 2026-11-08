@@ -1,7 +1,7 @@
 -- Règles d'intégrité (sections 5, 13 et 16) : preuves inaltérables, journal d'audit en ajout seul.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(31);
 
 -- ===== Données de test (identiques dans chaque fichier, annulées par le rollback) =====
 -- Entreprise A : owner, admin, office, lead + poseur (équipe A1), poseur sans équipe.
@@ -39,7 +39,7 @@ insert into public.delegataires (id, company_id, name) values
   ('d0000000-0000-4000-8000-000000000001', null, 'Délégataire global'),
   ('b5000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'Délégataire privé B');
 insert into public.checklist_templates (id, company_id, code, trade, version, title, content, published) values
-  ('c0000000-0000-4000-8000-000000000001', null, 'PAC_AIR_EAU', 'chauffage', '1.0.0', 'PAC air/eau', '{"items":[]}', true),
+  ('c0000000-0000-4000-8000-000000000001', null, 'PAC_TEST', 'chauffage', '1.0.0', 'PAC air/eau', '{"items":[]}', true),
   ('bc000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'PAC_B', 'chauffage', '1.0.0', 'Modèle B', '{"items":[]}', true);
 
 insert into public.jobsites (id, company_id, client_id, address, delegataire_id) values
@@ -180,6 +180,16 @@ select is((select upload_status from public.photos where id = 'a8000000-0000-400
   'un envoi tardif du téléphone ne fait pas régresser une photo vérifiée');
 select is((select position from public.proof_slots where id = 'a7000000-0000-4000-8000-000000000001'), 0,
   'une preuve a une position dans son modèle (0 par défaut)');
+select is((select applicable from public.proof_slots where id = 'a7000000-0000-4000-8000-000000000001'), true,
+  'une preuve est applicable par défaut');
+select lives_ok(
+  $$update public.proof_slots set applicable = false where id = 'a7000000-0000-4000-8000-000000000001'$$,
+  'le poseur masque une preuve écartée par une réponse (sans la supprimer)');
+select is(
+  (select count(*)::int from public.checklist_templates
+   where company_id is null and published and code in ('PAC_AIR_EAU', 'COMBLES_PERDUS')),
+  2,
+  'les modèles globaux V1 sont publiés et lisibles par chaque entreprise');
 select lives_ok(
   $$update public.photos set caption = 'Vue de face', annotations = '[{"type":"arrow"}]'
     where id = 'a8000000-0000-4000-8000-000000000002'$$,

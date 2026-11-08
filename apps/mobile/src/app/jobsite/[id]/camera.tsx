@@ -56,13 +56,20 @@ export default function CameraScreen() {
   }, [permission]);
 
   // Sans preuve demandée : la prochaine à prendre, ou photo libre si tout est pris.
+  // Revenue de « Impossible » : la preuve dispensée laisse place à la suivante.
+  const chosenWaived = !!chosenId && slots?.find((s) => s.id === chosenId)?.status === 'waived';
   const currentId =
-    chosenId !== undefined ? chosenId : slots ? (nextSlot(slots)?.id ?? null) : null;
+    chosenId !== undefined && !chosenWaived
+      ? chosenId
+      : slots
+        ? (nextSlot(slots, chosenWaived ? chosenId : null)?.id ?? null)
+        : null;
 
   const current = slots?.find((s) => s.id === currentId) ?? null;
   const { done, total } = proofProgress(slots ?? []);
   const rank = current && slots ? slotRank(slots, current.id) : null;
   const allDone = !!slots && slots.length > 0 && nextSlot(slots) === null;
+
   const last = photos[0];
 
   async function capture() {
@@ -98,11 +105,16 @@ export default function CameraScreen() {
       });
       console.info('[photo] enregistrée', { ...processed.timings });
       if (slotId && slots) {
-        const after = slots.map((s) =>
-          s.id === slotId ? { ...s, status: 'captured' as const } : s,
-        );
-        setCurrentId(nextSlot(after, slotId)?.id ?? null);
-        void haptics.proofValidated();
+        // Preuve à plusieurs vues : on reste dessus jusqu'au nombre minimal de photos.
+        const taken = photos.filter((p) => p.proofSlotId === slotId).length + 1;
+        const slot = slots.find((s) => s.id === slotId);
+        if (slot && taken >= slot.minPhotos) {
+          const after = slots.map((s) =>
+            s.id === slotId ? { ...s, status: 'captured' as const } : s,
+          );
+          setCurrentId(nextSlot(after, slotId)?.id ?? null);
+          void haptics.proofValidated();
+        }
       }
     } catch {
       setCapturing(false);
@@ -196,6 +208,28 @@ export default function CameraScreen() {
               {current ? current.instruction : t('camera.freeHint')}
             </AppText>
           </View>
+          {current ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${t('waive.action')} : ${current.instruction}`}
+              onPress={() =>
+                router.push({ pathname: '/jobsite/[id]/waive', params: { id, slot: current.id } })
+              }
+              style={{
+                minHeight: sizes.touchMin,
+                paddingHorizontal: spacing.md,
+                borderRadius: radius.md,
+                borderWidth: 2,
+                borderColor: colors.brand,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <AppText variant="button" color="brand">
+                {t('waive.action')}
+              </AppText>
+            </Pressable>
+          ) : null}
           {total > 0 ? <ProgressRing done={done} total={total} size={64} /> : null}
         </View>
       </SafeAreaView>

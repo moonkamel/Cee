@@ -11,6 +11,11 @@ function fakeEngine(initial: Partial<Record<SyncedTable, Row[]>>) {
     rows: async (t: SyncedTable) => tables.get(t) ?? [],
     write: async (table: SyncedTable, op: 'insert' | 'update', row: Row) => {
       writes.push({ table, op, row });
+      const rows = tables.get(table) ?? [];
+      const i = rows.findIndex((r) => r.id === row.id);
+      if (i >= 0) rows[i] = { ...rows[i], ...row };
+      else rows.push(row);
+      tables.set(table, rows);
     },
     sync: jest.fn(async () => ({ pushed: 0, rejected: 0, pulled: 0, offline: false })),
     status: async () => ({ pending: 0, rejected: 0, lastSyncAt: null, offline: false }),

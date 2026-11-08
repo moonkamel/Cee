@@ -5,21 +5,31 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { describeWork } from '@/components/JobsiteCard';
 import { Screen } from '@/components/Screen';
-import { AppText, BigButton, ChecklistRow, ProgressRing, Toast } from '@/components/ui';
+import {
+  AppText,
+  BigButton,
+  ChecklistRow,
+  ProgressRing,
+  QuestionCard,
+  Toast,
+} from '@/components/ui';
 import { useData } from '@/data/data-context';
 import { useJobsites } from '@/data/use-jobsites';
+import { useOperations } from '@/data/use-operations';
 import { useProofs } from '@/data/use-proofs';
 import { t } from '@/i18n/fr';
 import { pickFromGallery } from '@/lib/gallery';
 import { processPhotoFile } from '@/lib/photo-pipeline';
 import { useTheme } from '@/theme/theme';
 
-// Fiche chantier : preuves attendues (un tap ouvre la caméra sur la bonne consigne),
-// bouton « Commencer » sur la prochaine preuve, import de la galerie en photo libre.
+// Fiche chantier : questions rapides (la checklist s'adapte), preuves attendues (un tap
+// ouvre la caméra sur la bonne consigne), « Commencer » sur la prochaine preuve, import de
+// la galerie en photo libre, puis « Fin de chantier ».
 export default function JobsiteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { result } = useJobsites();
   const { slots, photos } = useProofs(id);
+  const operations = useOperations(id);
   const data = useData();
   const { spacing } = useTheme();
   const [imported, setImported] = useState(false);
@@ -85,11 +95,47 @@ export default function JobsiteScreen() {
         </View>
       </View>
 
+      {operations.some((o) => o.questions.length > 0) ? (
+        <View style={{ gap: spacing.sm }}>
+          <AppText variant="button" accessibilityRole="header">
+            {t('jobsite.questions')}
+          </AppText>
+          {operations.flatMap((o) =>
+            o.questions.map((q) =>
+              q.type === 'yes_no' ? (
+                <QuestionCard
+                  key={`${o.id}:${q.key}`}
+                  type="yes_no"
+                  label={q.label}
+                  value={q.value}
+                  onChange={(v) => void data.answerQuestion(o.id, q.key, v)}
+                />
+              ) : (
+                <QuestionCard
+                  key={`${o.id}:${q.key}`}
+                  type="number"
+                  label={q.label}
+                  value={q.value}
+                  min={q.min}
+                  max={q.max}
+                  onChange={(v) => void data.answerQuestion(o.id, q.key, v)}
+                />
+              ),
+            ),
+          )}
+        </View>
+      ) : null}
+
       {slots && slots.length > 0 ? (
         <View style={{ gap: spacing.sm }}>
           <AppText variant="button" accessibilityRole="header">
             {t('jobsite.proofs')}
           </AppText>
+          {operations.some((o) => o.draft) ? (
+            <AppText variant="caption" color="text-muted">
+              {t('jobsite.draftTemplate')}
+            </AppText>
+          ) : null}
           {slots.map((s) => (
             <ChecklistRow
               key={s.id}
@@ -113,6 +159,14 @@ export default function JobsiteScreen() {
         label={t('jobsite.importPhoto')}
         onPress={() => void importFromGallery()}
       />
+      {slots && slots.length > 0 ? (
+        <BigButton
+          variant="secondary"
+          icon="flag-checkered"
+          label={t('jobsite.finish')}
+          onPress={() => router.push({ pathname: '/jobsite/[id]/summary', params: { id } })}
+        />
+      ) : null}
       <Toast
         visible={imported}
         message={t('jobsite.imported')}

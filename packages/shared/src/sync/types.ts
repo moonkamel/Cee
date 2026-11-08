@@ -35,6 +35,8 @@ export const SYNCED_TABLES = {
   clients: { key: ['id'], cursor: 'updated_at' },
   jobsites: { key: ['id'], cursor: 'updated_at' },
   jobsite_assignees: { key: ['jobsite_id', 'profile_id'], cursor: 'created_at' },
+  // Lecture seule sur le téléphone : modèles globaux et de l'entreprise, pour générer hors ligne.
+  checklist_templates: { key: ['id'], cursor: 'updated_at' },
   jobsite_operations: { key: ['id'], cursor: 'updated_at' },
   proof_slots: { key: ['id'], cursor: 'updated_at' },
   photos: { key: ['id'], cursor: 'updated_at' },

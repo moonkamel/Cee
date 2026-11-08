@@ -1,3 +1,4 @@
+import type { WaiverReason } from '@preuvio/shared';
 import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 import { Stack } from 'expo-router';
 import { AuthProvider, type AuthService } from '@/auth/auth';
@@ -61,11 +62,16 @@ const slot = (
 ): ProofSlot => ({
   id,
   jobsiteId: 'j1',
+  operationId: 'o1',
   instruction,
   phase,
   position,
   required: true,
+  minPhotos: 1,
   status,
+  applicable: true,
+  waiverReason: null,
+  waiverValidated: false,
 });
 
 let slots: ProofSlot[] = [];
@@ -81,6 +87,10 @@ const data: jest.Mocked<DataSource> = {
   createJobsite: jest.fn(async (_input: NewJobsite) => 'x'),
   listSlots: jest.fn(async (_jobsiteId: string) => slots),
   listPhotos: jest.fn(async (_jobsiteId: string) => photos),
+  listOperations: jest.fn(async (_jobsiteId: string) => []),
+  answerQuestion: jest.fn(async (_o: string, _k: string, _v: boolean | number) => undefined),
+  waiveSlot: jest.fn(async (_slotId: string, _reason: WaiverReason) => undefined),
+  finishJobsite: jest.fn(async (_jobsiteId: string) => undefined),
   recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
   syncStatus: jest.fn(async () => ({
     pending: 0,
@@ -119,6 +129,7 @@ const routes = {
   _layout: Layout,
   'jobsite/[id]/index': JobsiteScreen,
   'jobsite/[id]/camera': CameraScreen,
+  'jobsite/[id]/waive': () => null,
 };
 
 beforeEach(() => {
@@ -254,5 +265,33 @@ describe('fiche chantier (S6)', () => {
       'photo-1',
       expect.objectContaining({ copy: true }),
     );
+  });
+});
+
+describe('caméra et checklist (S8)', () => {
+  it('« Impossible » ouvre le choix du motif pour la preuve affichée', async () => {
+    const router = await renderRouter(routes, { initialUrl: '/jobsite/j1/camera' });
+    await fireEvent.press(
+      await screen.findByRole('button', {
+        name: 'Impossible : Unité extérieure posée, vue entière',
+      }),
+    );
+    await waitFor(() => expect(router.getPathname()).toBe('/jobsite/j1/waive'));
+    expect(router.getSearchParams()).toMatchObject({ slot: 's2' });
+  });
+
+  it('une preuve dispensée laisse place à la suivante', async () => {
+    slots[1] = { ...slots[1]!, status: 'waived' };
+    await renderRouter(routes, { initialUrl: '/jobsite/j1/camera?slot=s2' });
+    expect(await screen.findByText("Plaque de l'unité extérieure, lisible")).toBeTruthy();
+  });
+
+  it('une preuve à deux vues reste affichée après la première photo', async () => {
+    slots[1] = { ...slots[1]!, minPhotos: 2 };
+    await renderRouter(routes, { initialUrl: '/jobsite/j1/camera' });
+    await screen.findByText('Unité extérieure posée, vue entière');
+    await fireEvent.press(screen.getByRole('button', { name: 'Prendre la photo' }));
+    await waitFor(() => expect(data.recordPhoto).toHaveBeenCalled());
+    expect(screen.getByText('Unité extérieure posée, vue entière')).toBeTruthy();
   });
 });

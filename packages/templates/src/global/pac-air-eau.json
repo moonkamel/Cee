@@ -1,0 +1,103 @@
+{
+  "code": "PAC_AIR_EAU",
+  "version": "1.0.0",
+  "trade": "chauffage",
+  "cee_operation": "BAR-TH-171",
+  "title": "Pompe à chaleur air/eau",
+  "review": { "status": "draft" },
+  "questions": [
+    { "key": "old_boiler_removed", "label": "Ancienne chaudière déposée ?", "type": "yes_no" },
+    {
+      "key": "indoor_units",
+      "label": "Nombre d'unités intérieures",
+      "type": "number",
+      "min": 1,
+      "max": 4,
+      "default": 1
+    }
+  ],
+  "items": [
+    {
+      "key": "facade",
+      "phase": "avant",
+      "label": "Façade du logement, numéro visible",
+      "hint": "Reculez pour cadrer toute la façade",
+      "ai_checks": ["sharp", "well_lit"]
+    },
+    {
+      "key": "old_boiler",
+      "phase": "avant",
+      "label": "Ancienne chaudière avant dépose",
+      "hint": "Toute la chaudière, de face",
+      "show_if": { "old_boiler_removed": true },
+      "ai_checks": ["subject:boiler", "sharp", "well_lit"]
+    },
+    {
+      "key": "old_boiler_plate",
+      "phase": "avant",
+      "label": "Plaque de l'ancienne chaudière",
+      "hint": "Rapprochez-vous : la plaque doit être lisible",
+      "show_if": { "old_boiler_removed": true },
+      "ai_checks": ["plate_readable"],
+      "extract": ["brand", "model"]
+    },
+    {
+      "key": "boiler_spot",
+      "phase": "pendant",
+      "label": "Emplacement vide après dépose",
+      "show_if": { "old_boiler_removed": true },
+      "ai_checks": ["sharp"]
+    },
+    {
+      "key": "hydraulic",
+      "phase": "pendant",
+      "label": "Raccordements hydrauliques avant habillage",
+      "ai_checks": ["sharp", "well_lit"]
+    },
+    {
+      "key": "outdoor_unit",
+      "phase": "apres",
+      "label": "Unité extérieure posée, vue entière",
+      "hint": "Avec son support et ses abords",
+      "ai_checks": ["subject:heat_pump_outdoor", "sharp"]
+    },
+    {
+      "key": "outdoor_unit_plate",
+      "phase": "apres",
+      "label": "Plaque de l'unité extérieure",
+      "hint": "Rapprochez-vous : la plaque doit être lisible",
+      "ai_checks": ["plate_readable"],
+      "extract": ["brand", "model", "serial_number"]
+    },
+    {
+      "key": "indoor_unit",
+      "phase": "apres",
+      "label": "Unité intérieure posée",
+      "repeat": "indoor_units",
+      "ai_checks": ["sharp", "well_lit"]
+    },
+    {
+      "key": "indoor_unit_plate",
+      "phase": "apres",
+      "label": "Plaque de l'unité intérieure",
+      "hint": "Rapprochez-vous : la plaque doit être lisible",
+      "repeat": "indoor_units",
+      "ai_checks": ["plate_readable"],
+      "extract": ["brand", "model", "serial_number"]
+    },
+    {
+      "key": "controller",
+      "phase": "apres",
+      "label": "Régulateur après mise en service",
+      "hint": "Écran allumé, température visible",
+      "ai_checks": ["sharp", "screen_readable"]
+    },
+    {
+      "key": "commissioning_sheet",
+      "phase": "apres",
+      "label": "Fiche de mise en service",
+      "required": false,
+      "ai_checks": ["document_readable"]
+    }
+  ]
+}

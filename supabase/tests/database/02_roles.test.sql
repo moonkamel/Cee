@@ -39,7 +39,7 @@ insert into public.delegataires (id, company_id, name) values
   ('d0000000-0000-4000-8000-000000000001', null, 'Délégataire global'),
   ('b5000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'Délégataire privé B');
 insert into public.checklist_templates (id, company_id, code, trade, version, title, content, published) values
-  ('c0000000-0000-4000-8000-000000000001', null, 'PAC_AIR_EAU', 'chauffage', '1.0.0', 'PAC air/eau', '{"items":[]}', true),
+  ('c0000000-0000-4000-8000-000000000001', null, 'PAC_TEST', 'chauffage', '1.0.0', 'PAC air/eau', '{"items":[]}', true),
   ('bc000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'PAC_B', 'chauffage', '1.0.0', 'Modèle B', '{"items":[]}', true);
 
 insert into public.jobsites (id, company_id, client_id, address, delegataire_id) values

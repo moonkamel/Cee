@@ -8,6 +8,7 @@ import type {
   SyncStatus,
   TodayJobsiteInput,
   UploadBlock,
+  WaiverReason,
   WorkType,
 } from '@preuvio/shared';
 
@@ -27,11 +28,31 @@ export type Jobsite = TodayJobsiteInput & {
 export type ProofSlot = {
   id: string;
   jobsiteId: string;
+  operationId: string | null;
   instruction: string;
   phase: ProofPhase;
   position: number;
   required: boolean;
+  minPhotos: number;
   status: ProofSlotStatus;
+  /** Faux si une réponse l'a écartée : ni affichée, ni comptée. */
+  applicable: boolean;
+  waiverReason: string | null;
+  waiverValidated: boolean;
+};
+
+/** Question rapide d'une opération, avec sa réponse actuelle (ou celle par défaut). */
+export type OperationQuestion =
+  | { key: string; label: string; type: 'yes_no'; value: boolean | null }
+  | { key: string; label: string; type: 'number'; min: number; max: number; value: number };
+
+/** Opération d'un chantier (un geste CEE) et ses questions rapides. */
+export type Operation = {
+  id: string;
+  label: string;
+  /** Modèle pas encore relu par un professionnel (section 7). */
+  draft: boolean;
+  questions: OperationQuestion[];
 };
 
 /** Photo prise sur le téléphone, telle que l'écran l'affiche. */
@@ -89,7 +110,15 @@ export interface DataSource {
   getProfile(userId: string): Promise<Profile | null>;
   /** Crée un chantier sur le téléphone ; il part au serveur dès que possible. Renvoie son id. */
   createJobsite(input: NewJobsite): Promise<string>;
+  /** Preuves applicables du chantier (les preuves écartées par une réponse sont exclues). */
   listSlots(jobsiteId: string): Promise<ProofSlot[]>;
+  listOperations(jobsiteId: string): Promise<Operation[]>;
+  /** Répond à une question rapide : la checklist suit (preuves ajoutées, masquées). */
+  answerQuestion(operationId: string, key: string, value: boolean | number): Promise<void>;
+  /** Marque une preuve « Impossible », avec un motif de la liste. Le bureau la valide. */
+  waiveSlot(slotId: string, reason: WaiverReason): Promise<void>;
+  /** « Terminer le chantier » : statut « terminé par le poseur ». */
+  finishJobsite(jobsiteId: string): Promise<void>;
   listPhotos(jobsiteId: string): Promise<PhotoSummary[]>;
   /** Enregistre la photo et met la preuve à « capturée » ; tout part au serveur ensuite. */
   recordPhoto(input: RecordPhotoInput): Promise<void>;

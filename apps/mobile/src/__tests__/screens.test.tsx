@@ -1,3 +1,4 @@
+import type { WaiverReason } from '@preuvio/shared';
 import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 import { Stack } from 'expo-router';
 import * as Location from 'expo-location';
@@ -10,6 +11,7 @@ import type {
   Jobsite,
   NewJobsite,
   Profile,
+  ProofSlot,
   RecordPhotoInput,
 } from '@/data/types';
 import { addressesNear } from '@/lib/geocoding';
@@ -21,6 +23,8 @@ import Today from '../app/(tabs)/index';
 import Jobsites from '../app/(tabs)/jobsites';
 import Me from '../app/(tabs)/me';
 import JobsiteScreen from '../app/jobsite/[id]/index';
+import SummaryScreen from '../app/jobsite/[id]/summary';
+import WaiveScreen from '../app/jobsite/[id]/waive';
 import JobsiteNew from '../app/jobsite/new';
 import LoginCode from '../app/login/code';
 import LoginPhone from '../app/login/index';
@@ -115,6 +119,10 @@ const data: jest.Mocked<DataSource> = {
   createJobsite: jest.fn(async (_input: NewJobsite) => 'j-nouveau'),
   listSlots: jest.fn(async (_id: string) => []),
   listPhotos: jest.fn(async (_id: string) => []),
+  listOperations: jest.fn(async (_jobsiteId: string) => []),
+  answerQuestion: jest.fn(async (_o: string, _k: string, _v: boolean | number) => undefined),
+  waiveSlot: jest.fn(async (_slotId: string, _reason: WaiverReason) => undefined),
+  finishJobsite: jest.fn(async (_jobsiteId: string) => undefined),
   recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
   syncStatus: jest.fn(async () => syncStatus),
   syncNow: jest.fn(async () => undefined),
@@ -147,6 +155,9 @@ const routes = {
   'login/code': LoginCode,
   'jobsite/new': JobsiteNew,
   'jobsite/[id]/index': JobsiteScreen,
+  'jobsite/[id]/summary': SummaryScreen,
+  'jobsite/[id]/waive': WaiveScreen,
+  'jobsite/[id]/camera': () => null,
 };
 
 function withPosition(position: { lat: number; lng: number } | null) {
@@ -435,5 +446,124 @@ describe('création rapide d’un chantier (S5)', () => {
       workTypes: ['combles'],
       client: null,
     });
+  });
+});
+
+// --- S8 : questions rapides, dispense, fin de chantier -------------------------------------
+const proof = (id: string, over: Partial<ProofSlot> = {}): ProofSlot => ({
+  id,
+  jobsiteId: 'j1',
+  operationId: 'o1',
+  instruction: `Preuve ${id}`,
+  phase: 'apres',
+  position: 0,
+  required: true,
+  minPhotos: 1,
+  status: 'missing',
+  applicable: true,
+  waiverReason: null,
+  waiverValidated: false,
+  ...over,
+});
+
+describe('checklist d’un chantier (S8)', () => {
+  beforeEach(() => {
+    signedInUser = 'u-poseur';
+    jobsites.data = [jobsite({ id: 'j1', address: 'Chantier A' })];
+    data.listOperations.mockResolvedValue([
+      {
+        id: 'o1',
+        label: 'Pompe à chaleur air/eau',
+        draft: true,
+        questions: [
+          {
+            key: 'old_boiler_removed',
+            label: 'Ancienne chaudière déposée ?',
+            type: 'yes_no',
+            value: null,
+          },
+          {
+            key: 'indoor_units',
+            label: 'Nombre d’unités intérieures',
+            type: 'number',
+            min: 1,
+            max: 4,
+            value: 1,
+          },
+        ],
+      },
+    ]);
+  });
+  afterEach(() => {
+    data.listSlots.mockResolvedValue([]);
+    data.listOperations.mockResolvedValue([]);
+  });
+
+  it('répond aux questions rapides d’un tap, la checklist suit', async () => {
+    data.listSlots.mockResolvedValue([proof('a')]);
+    await renderRouter(routes, { initialUrl: '/jobsite/j1' });
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Ancienne chaudière déposée ? Non' }),
+    );
+    expect(data.answerQuestion).toHaveBeenCalledWith('o1', 'old_boiler_removed', false);
+    await fireEvent.press(screen.getByRole('button', { name: '+' }));
+    expect(data.answerQuestion).toHaveBeenCalledWith('o1', 'indoor_units', 2);
+    // Au minimum, « − » est désactivé.
+    expect(screen.getByRole('button', { name: '−' }).props.accessibilityState).toMatchObject({
+      disabled: true,
+    });
+    expect(screen.getByText('Checklist en brouillon, à faire relire')).toBeTruthy();
+  });
+
+  it('« Fin de chantier » ouvre le récapitulatif', async () => {
+    data.listSlots.mockResolvedValue([proof('a')]);
+    const router = await renderRouter(routes, { initialUrl: '/jobsite/j1' });
+    await fireEvent.press(await screen.findByRole('button', { name: 'Fin de chantier' }));
+    await waitFor(() => expect(router.getPathname()).toBe('/jobsite/j1/summary'));
+  });
+
+  it('tout est pris : « 2 preuves sur 2 », terminer d’un tap', async () => {
+    data.listSlots.mockResolvedValue([
+      proof('a', { status: 'captured' }),
+      proof('b', { status: 'waived', waiverReason: 'inaccessible' }),
+    ]);
+    const router = await renderRouter(routes, { initialUrl: '/jobsite/j1/summary' });
+    expect(await screen.findByText('2 preuves sur 2')).toBeTruthy();
+    expect(screen.getByText('1 dispense(s) à valider par le bureau')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Terminer le chantier' }));
+    expect(data.finishJobsite).toHaveBeenCalledWith('j1');
+    await waitFor(() => expect(router.getPathname()).toBe('/'));
+  });
+
+  it('avec des manques : liste avec caméra, puis « Terminer quand même » au second tap', async () => {
+    data.listSlots.mockResolvedValue([proof('a', { status: 'captured' }), proof('b')]);
+    const router = await renderRouter(routes, { initialUrl: '/jobsite/j1/summary' });
+    expect(await screen.findByText('1 preuves sur 2')).toBeTruthy();
+    expect(screen.getByText('Il manque 1 preuve(s)')).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Terminer le chantier' }));
+    expect(data.finishJobsite).not.toHaveBeenCalled();
+    expect(screen.getByText('Preuves manquantes : le bureau sera prévenu')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Terminer quand même' }));
+    expect(data.finishJobsite).toHaveBeenCalledWith('j1');
+    await waitFor(() => expect(router.getPathname()).toBe('/'));
+  });
+
+  it('un manque ouvre la caméra sur la bonne preuve', async () => {
+    data.listSlots.mockResolvedValue([proof('b')]);
+    const router = await renderRouter(routes, { initialUrl: '/jobsite/j1/summary' });
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Photographier : Preuve b. Manquante' }),
+    );
+    await waitFor(() => expect(router.getPathname()).toBe('/jobsite/j1/camera'));
+    expect(router.getSearchParams()).toMatchObject({ slot: 'b' });
+  });
+
+  it('« Impossible » : un motif en un tap, puis retour', async () => {
+    data.listSlots.mockResolvedValue([proof('b')]);
+    await renderRouter(routes, { initialUrl: '/jobsite/j1/waive?slot=b' });
+    expect(await screen.findByText('Preuve b')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Équipement inaccessible' }));
+    expect(data.waiveSlot).toHaveBeenCalledWith('b', 'inaccessible');
   });
 });
