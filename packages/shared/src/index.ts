@@ -5,3 +5,5 @@ export * from './phone';
 export * from './proof-progress';
 export * from './today';
 export * from './sync';
+export * from './photo';
+export * from './slots';

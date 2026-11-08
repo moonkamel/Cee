@@ -10,17 +10,20 @@ export function Icon({
   name,
   color = 'text',
   size,
+  fixedColor,
 }: {
   name: IconName;
   color?: ColorToken;
   size?: number;
+  /** Couleur fixe, hors thème (écran caméra : toujours blanc sur noir). */
+  fixedColor?: string;
 }) {
   const { colors, sizes } = useTheme();
   return (
     <MaterialCommunityIcons
       name={name}
       size={size ?? sizes.icon}
-      color={colors[color]}
+      color={fixedColor ?? colors[color]}
       accessibilityElementsHidden
       importantForAccessibility="no"
     />

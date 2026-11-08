@@ -1,7 +1,7 @@
 -- Règles d'intégrité (sections 5, 13 et 16) : preuves inaltérables, journal d'audit en ajout seul.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(24);
 
 -- ===== Données de test (identiques dans chaque fichier, annulées par le rollback) =====
 -- Entreprise A : owner, admin, office, lead + poseur (équipe A1), poseur sans équipe.
@@ -153,6 +153,17 @@ select lives_ok(
 select is(
   (select server_received_at from public.photos where id = 'a8000000-0000-4000-8000-000000000002'), now(),
   'l''heure serveur est imposée par le serveur, pas par le téléphone');
+-- Comme l'API (insert … returning), et la preuve passe « capturée » par le poseur (S6).
+select lives_ok(
+  $$insert into public.photos (id, jobsite_id, proof_slot_id, author_id, device_taken_at, sha256, original_path, heading, gps_accuracy_m)
+    values ('a8000000-0000-4000-8000-000000000003', 'a4000000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000001',
+            'a1000000-0000-4000-8000-000000000005', now(), repeat('3', 64), 'a/b/c.jpg', 182, 6) returning id$$,
+  'le poseur envoie une photo de preuve comme le fait l''API');
+select lives_ok(
+  $$update public.proof_slots set status = 'captured' where id = 'a7000000-0000-4000-8000-000000000001' returning id$$,
+  'la preuve passe « capturée » après la photo');
+select is((select position from public.proof_slots where id = 'a7000000-0000-4000-8000-000000000001'), 0,
+  'une preuve a une position dans son modèle (0 par défaut)');
 select lives_ok(
   $$update public.photos set caption = 'Vue de face', annotations = '[{"type":"arrow"}]'
     where id = 'a8000000-0000-4000-8000-000000000002'$$,

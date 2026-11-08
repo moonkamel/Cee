@@ -1,5 +1,9 @@
 import {
+  buildPhotoRow,
   buildQuickJobsite,
+  slotNeedsPhoto,
+  type PhotoSource,
+  type ProofPhase,
   type ProofSlotStatus,
   type Role,
   type Row,
@@ -7,7 +11,7 @@ import {
   type WorkType,
 } from '@preuvio/shared';
 import { localToday } from '@/lib/position';
-import type { DataSource, Jobsite, Profile } from './types';
+import type { DataSource, Jobsite, PhotoSummary, Profile, ProofSlot } from './types';
 
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
@@ -48,14 +52,39 @@ export function assembleJobsites(tables: {
     );
 }
 
+export function toProofSlot(s: Row): ProofSlot {
+  return {
+    id: String(s.id),
+    jobsiteId: String(s.jobsite_id),
+    instruction: str(s.instruction) ?? '',
+    phase: s.phase as ProofPhase,
+    position: num(s.position) ?? 0,
+    required: s.required !== false,
+    status: s.status as ProofSlotStatus,
+  };
+}
+
+export function toPhotoSummary(p: Row): PhotoSummary {
+  return {
+    id: String(p.id),
+    proofSlotId: str(p.proof_slot_id),
+    thumbUri: str(p._thumbUri) ?? str(p._localUri),
+    takenAt: str(p.device_taken_at) ?? '',
+    outsideGeofence: p.outside_geofence === true,
+    source: (p.source as PhotoSource) ?? 'camera',
+  };
+}
+
 export function createLocalSource({
   engine,
   currentUserId,
   newId,
+  deviceInfo = { model: null, appVersion: null },
 }: {
   engine: SyncEngine;
   currentUserId: () => string | null;
   newId: () => string;
+  deviceInfo?: { model: string | null; appVersion: string | null };
 }): DataSource {
   async function list() {
     const [jobsites, clients, operations, slots, status] = await Promise.all([
@@ -98,6 +127,58 @@ export function createLocalSource({
       // Envoi immédiat si le réseau est là ; sinon la file attend, sans bloquer l'écran.
       void engine.sync().catch(() => undefined);
       return String(rows.jobsite.id);
+    },
+
+    async listSlots(jobsiteId) {
+      return (await engine.rows('proof_slots'))
+        .filter((s) => s.jobsite_id === jobsiteId)
+        .map(toProofSlot);
+    },
+
+    async listPhotos(jobsiteId) {
+      return (await engine.rows('photos'))
+        .filter((p) => p.jobsite_id === jobsiteId && !p.deleted_at)
+        .map(toPhotoSummary)
+        .sort((a, b) => b.takenAt.localeCompare(a.takenAt));
+    },
+
+    async recordPhoto(input) {
+      const userId = currentUserId();
+      if (!userId) throw new Error('Utilisateur non connecté');
+      const profile = (await engine.rows('profiles')).find((p) => p.id === userId);
+      const companyId = str(profile?.company_id);
+      if (!companyId) throw new Error('Entreprise inconnue : synchronisation pas encore faite');
+      const jobsite = (await engine.rows('jobsites')).find((j) => j.id === input.jobsiteId);
+      const row = buildPhotoRow(
+        {
+          ...input,
+          companyId,
+          authorId: userId,
+          deviceModel: deviceInfo.model,
+          appVersion: deviceInfo.appVersion,
+        },
+        {
+          lat: num(jobsite?.lat),
+          lng: num(jobsite?.lng),
+          geofenceRadiusM: num(jobsite?.geofence_radius_m) ?? 150,
+        },
+      );
+      // Champs locaux : le fichier reste sur le téléphone jusqu'à son envoi (S7).
+      await engine.write('photos', 'insert', {
+        ...row,
+        _localUri: input.localUri,
+        _thumbUri: input.thumbUri,
+      });
+      if (row.proof_slot_id) {
+        const slot = (await engine.rows('proof_slots')).find((s) => s.id === row.proof_slot_id);
+        if (slot && slotNeedsPhoto(toProofSlot(slot))) {
+          await engine.write('proof_slots', 'update', {
+            id: row.proof_slot_id,
+            status: 'captured',
+          });
+        }
+      }
+      void engine.sync().catch(() => undefined);
     },
 
     syncStatus: () => engine.status(),

@@ -3,7 +3,14 @@ import { Stack } from 'expo-router';
 import * as Location from 'expo-location';
 import { AuthProvider, type AuthService } from '@/auth/auth';
 import { DataProvider } from '@/data/data-context';
-import type { CachedResult, DataSource, Jobsite, NewJobsite, Profile } from '@/data/types';
+import type {
+  CachedResult,
+  DataSource,
+  Jobsite,
+  NewJobsite,
+  Profile,
+  RecordPhotoInput,
+} from '@/data/types';
 import { addressesNear } from '@/lib/geocoding';
 import { pickContact } from '@/lib/contacts';
 import type { SyncStatus } from '@preuvio/shared';
@@ -13,7 +20,7 @@ import TabsLayout from '../app/(tabs)/_layout';
 import Today from '../app/(tabs)/index';
 import Jobsites from '../app/(tabs)/jobsites';
 import Me from '../app/(tabs)/me';
-import JobsiteScreen from '../app/jobsite/[id]';
+import JobsiteScreen from '../app/jobsite/[id]/index';
 import JobsiteNew from '../app/jobsite/new';
 import LoginCode from '../app/login/code';
 import LoginPhone from '../app/login/index';
@@ -98,6 +105,9 @@ const data: jest.Mocked<DataSource> = {
     companyName: 'Thermi Rénov',
   })),
   createJobsite: jest.fn(async (_input: NewJobsite) => 'j-nouveau'),
+  listSlots: jest.fn(async (_id: string) => []),
+  listPhotos: jest.fn(async (_id: string) => []),
+  recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
   syncStatus: jest.fn(async () => syncStatus),
   syncNow: jest.fn(async () => undefined),
   onChange: jest.fn((_l: () => void) => () => undefined),
@@ -126,7 +136,7 @@ const routes = {
   'login/index': LoginPhone,
   'login/code': LoginCode,
   'jobsite/new': JobsiteNew,
-  'jobsite/[id]': JobsiteScreen,
+  'jobsite/[id]/index': JobsiteScreen,
 };
 
 function withPosition(position: { lat: number; lng: number } | null) {

@@ -62,3 +62,26 @@ values
 insert into public.jobsite_assignees (jobsite_id, profile_id, company_id) values
   ('50000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001'),
   ('50000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001');
+
+-- Caméra guidée (S6) : en attendant les vrais modèles de checklists (S8), une opération de
+-- démonstration « PAC air/eau » et ses preuves sur le chantier du poseur. Contenu illustratif,
+-- non relu par un professionnel : à remplacer par le modèle officiel en S8.
+insert into public.checklist_templates (id, company_id, code, trade, version, title, cee_operation, content, published)
+values ('60000000-0000-4000-8000-000000000001', null, 'DEMO_PAC_AIR_EAU', 'chauffage', '0.1.0',
+        'PAC air/eau (démonstration)', 'BAR-TH-171', '{"demo": true, "items": []}', true);
+
+insert into public.jobsite_operations (id, company_id, jobsite_id, code, template_id, template_version, template_snapshot, label)
+values ('61000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001',
+        '50000000-0000-4000-8000-000000000001', 'BAR-TH-171', '60000000-0000-4000-8000-000000000001',
+        '0.1.0', '{"demo": true}', 'PAC air/eau');
+
+insert into public.proof_slots (id, company_id, jobsite_id, operation_id, item_key, instruction, phase, position, required)
+select v.id::uuid, '20000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000001',
+       '61000000-0000-4000-8000-000000000001', v.item_key, v.instruction, v.phase, v.position, v.required
+from (values
+  ('62000000-0000-4000-8000-000000000001', 'old_boiler', 'Chaudière existante avant dépose', 'avant', 1, true),
+  ('62000000-0000-4000-8000-000000000002', 'outdoor_unit', 'Unité extérieure posée, vue entière', 'apres', 1, true),
+  ('62000000-0000-4000-8000-000000000003', 'outdoor_unit_plate', 'Plaque de l''unité extérieure, lisible', 'apres', 2, true),
+  ('62000000-0000-4000-8000-000000000004', 'indoor_unit', 'Unité intérieure posée', 'apres', 3, true),
+  ('62000000-0000-4000-8000-000000000005', 'controller', 'Régulateur après mise en service', 'apres', 4, true)
+) as v(id, item_key, instruction, phase, position, required);

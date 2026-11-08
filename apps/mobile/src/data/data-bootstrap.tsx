@@ -1,5 +1,7 @@
 import { createSupabaseRemote, createSyncEngine, type SyncEngine } from '@preuvio/shared';
+import * as Application from 'expo-application';
 import { randomUUID } from 'expo-crypto';
+import * as Device from 'expo-device';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from '@/auth/auth';
 import { supabase } from '@/lib/supabase';
@@ -53,7 +55,17 @@ export function DataBootstrap({ children }: { children: ReactNode }) {
 
   const source = useMemo(
     () =>
-      engine ? createLocalSource({ engine, currentUserId: () => userId, newId: randomUUID }) : null,
+      engine
+        ? createLocalSource({
+            engine,
+            currentUserId: () => userId,
+            newId: randomUUID,
+            deviceInfo: {
+              model: Device.modelName ?? null,
+              appVersion: Application.nativeApplicationVersion ?? null,
+            },
+          })
+        : null,
     [engine, userId],
   );
 

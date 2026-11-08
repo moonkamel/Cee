@@ -66,3 +66,15 @@ describe('tailles', () => {
     expect(sizes.shutter).toBe(88);
   });
 });
+
+describe('couleurs de la caméra', () => {
+  it('les commandes blanches restent lisibles sur le fond noir (7:1)', async () => {
+    const { cameraColors } = await import('./colors');
+    expect(contrastRatio(cameraColors.ink, cameraColors.background)).toBeGreaterThanOrEqual(
+      CONTRAST.action,
+    );
+    expect(contrastRatio(cameraColors.warn, cameraColors.background)).toBeGreaterThanOrEqual(
+      CONTRAST.action,
+    );
+  });
+});

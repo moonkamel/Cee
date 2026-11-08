@@ -40,3 +40,15 @@ export function palette(scheme: ColorScheme): Palette {
     Object.entries(colors).map(([token, value]) => [token, value[scheme]]),
   ) as Palette;
 }
+
+/**
+ * Couleurs fixes de l'écran caméra : l'image est vue sur fond noir quel que soit le thème,
+ * les commandes restent blanches et lisibles en plein soleil.
+ */
+export const cameraColors = {
+  background: '#000000',
+  ink: '#FFFFFF',
+  scrim: 'rgba(0,0,0,0.55)',
+  inkOnLight: '#000000',
+  warn: '#FDE047',
+} as const;
