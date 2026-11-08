@@ -5,30 +5,18 @@
 //   SEND_SMS_HOOK_SECRETS  secret du hook, au format « v1,whsec_… » (fourni par Supabase)
 //   BREVO_API_KEY          clé API Brevo (jamais dans l'appli mobile)
 //   BREVO_SMS_SENDER       nom d'expéditeur, 11 caractères max (ex. « Preuvio »)
-//
-// Non testé de bout en bout : à vérifier avec un vrai compte Brevo en session S4
-// (notamment l'URL de l'API SMS transactionnelle, à confirmer dans la doc Brevo).
 
-import { Webhook } from 'https://esm.sh/standardwebhooks@1.0.0';
-
-const BREVO_SMS_URL = 'https://api.brevo.com/v3/transactionalSMS/sms';
+import { Webhook } from 'npm:standardwebhooks@1.0.0';
+import { sendSms } from '../_shared/brevo.ts';
+import { json } from '../_shared/http.ts';
 
 type SendSmsPayload = { user: { phone: string }; sms: { otp: string } };
-
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json(405, { error: 'Méthode non autorisée' });
 
   const secret = Deno.env.get('SEND_SMS_HOOK_SECRETS')?.replace('v1,whsec_', '');
-  const apiKey = Deno.env.get('BREVO_API_KEY');
-  if (!secret || !apiKey)
-    return json(500, { error: { http_code: 500, message: 'Hook SMS non configuré' } });
+  if (!secret) return json(500, { error: { http_code: 500, message: 'Hook SMS non configuré' } });
 
   // Vérifie que l'appel vient bien de Supabase Auth (signature Standard Webhooks).
   const body = await req.text();
@@ -39,20 +27,10 @@ Deno.serve(async (req) => {
     return json(401, { error: { http_code: 401, message: 'Signature invalide' } });
   }
 
-  const res = await fetch(BREVO_SMS_URL, {
-    method: 'POST',
-    headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      sender: Deno.env.get('BREVO_SMS_SENDER') ?? 'Preuvio',
-      recipient: payload.user.phone.replace(/^\+/, ''),
-      content: `Preuvio : votre code est ${payload.sms.otp}`,
-      type: 'transactional',
-    }),
-  });
-
-  if (!res.ok) {
-    // Le code n'est jamais journalisé.
-    console.error("Brevo a refusé l'envoi du SMS", res.status);
+  try {
+    await sendSms(payload.user.phone, `Preuvio : votre code est ${payload.sms.otp}`);
+  } catch (e) {
+    console.error('Envoi du code SMS impossible', e instanceof Error ? e.message : e);
     return json(502, { error: { http_code: 502, message: 'Envoi du SMS impossible' } });
   }
   return json(200, {});

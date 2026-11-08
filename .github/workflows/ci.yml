@@ -37,6 +37,13 @@ jobs:
       - name: Tests
         run: pnpm test
 
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Edge Functions (typecheck Deno)
+        run: deno check supabase/functions/*/index.ts
+
   database:
     name: Base de données (migrations, seed, tests RLS)
     runs-on: ubuntu-latest

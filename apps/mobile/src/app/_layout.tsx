@@ -3,23 +3,19 @@ import {
   AtkinsonHyperlegible_700Bold,
   useFonts,
 } from '@expo-google-fonts/atkinson-hyperlegible';
-import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ThemeProvider, useTheme } from '@/theme/theme';
+import { AppProviders } from '@/app-providers';
+import { AppStack } from '@/app-stack';
+import { AuthProvider, createSupabaseAuth } from '@/auth/auth';
+import { DataProvider } from '@/data/data-context';
+import { createSupabaseSource } from '@/data/supabase-source';
+import { supabase } from '@/lib/supabase';
 
 void SplashScreen.preventAutoHideAsync();
 
-function ThemedStack() {
-  const { scheme, colors } = useTheme();
-  return (
-    <>
-      <StatusBar style={scheme === 'light' ? 'dark' : 'light'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }} />
-    </>
-  );
-}
+const authService = createSupabaseAuth(supabase);
+const dataSource = createSupabaseSource(supabase);
 
 export default function RootLayout() {
   // Polices embarquées dans l'appli : aucun téléchargement au lancement (hors ligne par défaut).
@@ -34,8 +30,12 @@ export default function RootLayout() {
 
   if (!loaded && !error) return null;
   return (
-    <ThemeProvider>
-      <ThemedStack />
-    </ThemeProvider>
+    <AppProviders>
+      <AuthProvider service={authService}>
+        <DataProvider source={dataSource}>
+          <AppStack />
+        </DataProvider>
+      </AuthProvider>
+    </AppProviders>
   );
 }

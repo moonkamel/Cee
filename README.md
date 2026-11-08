@@ -29,6 +29,9 @@ pnpm typecheck
 pnpm test
 ```
 
+Configuration de l'appli mobile : copier `apps/mobile/.env.example` en `apps/mobile/.env.local`
+(URL et clé publique Supabase, données par `pnpm exec supabase status`).
+
 L'appli mobile tourne dans un **build de développement** (`expo-dev-client`), pas dans Expo Go :
 
 ```sh
@@ -51,10 +54,11 @@ chef d'équipe `+33 6 39 98 00 02`, poseur `+33 6 39 98 00 03`.
 
 ## Avancement
 
-| Session | Contenu                     | État     |
-| ------- | --------------------------- | -------- |
-| S1      | Monorepo et outillage       | Terminée |
-| S2      | Design system               | Terminée |
-| S3      | Base de données et sécurité | Terminée |
+| Session | Contenu                            | État     |
+| ------- | ---------------------------------- | -------- |
+| S1      | Monorepo et outillage              | Terminée |
+| S2      | Design system                      | Terminée |
+| S3      | Base de données et sécurité        | Terminée |
+| S4      | Connexion et écran « Aujourd'hui » | Terminée |
 
 Le plan complet (19 sessions, 5 phases) est dans la section 18 du cahier des charges.
