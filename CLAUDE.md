@@ -1,0 +1,35 @@
+# Preuvio — consignes pour Claude Code
+
+## Le produit
+Appli de preuve de pose pour entreprises RGE.
+Spécification complète : docs/cahier-des-charges.md.
+En cas de doute, la spécification fait foi : pose la question plutôt que d'inventer.
+
+## Utilisateur principal
+Poseur sur chantier : gants, plein soleil, réseau faible, peu à l'aise avec le numérique.
+Chaque écran mobile respecte les 8 principes de la section 1.
+
+## Stack
+- Monorepo pnpm + Turborepo
+- apps/mobile : Expo, Expo Router, TypeScript strict, react-native-vision-camera
+- apps/web : Next.js App Router, Tailwind, shadcn/ui
+- supabase/ : Postgres, RLS, Storage, Edge Functions, pgmq
+- packages/shared : logique métier pure, schémas zod, tests Vitest
+
+## Règles
+- Aucune clé d'API dans apps/mobile : tout appel externe passe par une Edge Function.
+- Toute table a un company_id et une politique RLS testée.
+- Une photo n'est jamais modifiée ni supprimée physiquement.
+- Couleurs et tailles uniquement via packages/ui-tokens.
+- Textes d'interface en français, via les fichiers de traduction ; consignes de 8 mots maximum.
+- Appels IA via packages/shared/ai (interface remplaçable) :
+  claude-haiku-5-5 pour les photos, claude-sonnet-5-5 pour les rapports.
+- Logique métier dans packages/shared, couverte à plus de 80 %.
+
+## Méthode
+1. Lire la section concernée, proposer un plan, attendre la validation.
+2. Avancer par petites étapes, avec des tests.
+3. Fin de session : pnpm lint, pnpm typecheck, pnpm test, puis résumé.
+
+## Commandes
+pnpm dev · pnpm test · pnpm lint · pnpm typecheck · supabase start · supabase db reset

@@ -1,0 +1,11 @@
+pnpm-lock.yaml
+node_modules
+.turbo
+.expo
+.next
+dist
+coverage
+docs/
+CLAUDE.md
+**/AGENTS.md
+apps/web/next-env.d.ts
