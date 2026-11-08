@@ -79,17 +79,21 @@ L'interface est conçue pour être lue en plein soleil et utilisée avec des gan
 
 **Couleurs.** Tous les écrans utilisent ces jetons, jamais de couleur codée en dur. Chaque statut combine toujours une icône, un mot et une couleur, pour rester lisible par les daltoniens.
 
-| Jeton | Usage | Mode clair | Mode sombre |
-|---|---|---|---|
-| `action` | Bouton principal, déclencheur photo | #EA580C (orange chantier) | #FB923C |
-| `brand` | En-têtes, liens, éléments de marque | #1F3A5F (bleu ardoise) | #93C5FD |
-| `ok` | Preuve validée, chantier conforme | #15803D | #4ADE80 |
-| `warn` | Preuve à reprendre, chantier à risque | #A16207 | #FACC15 |
-| `ko` | Preuve manquante, erreur | #B91C1C | #F87171 |
-| `bg` | Fond d'écran | #F8FAFC | #0B1220 |
-| `surface` | Cartes, feuilles | #FFFFFF | #111A2E |
-| `text` | Texte principal | #0F172A | #F1F5F9 |
-| `text-muted` | Texte secondaire | #475569 | #94A3B8 |
+| Jeton | Usage | Mode clair | Mode sombre | Contraste maximal |
+|---|---|---|---|---|
+| `action` | Bouton principal, déclencheur photo | #9A3412 (orange brûlé) | #FB923C | #FDBA74 |
+| `on-action` | Texte et icônes posés sur `action` | #FFFFFF | #0B1220 | #000000 |
+| `brand` | En-têtes, liens, éléments de marque | #1F3A5F (bleu ardoise) | #93C5FD | #BFDBFE |
+| `ok` | Preuve validée, chantier conforme | #15803D | #4ADE80 | #86EFAC |
+| `warn` | Preuve à reprendre, chantier à risque | #A16207 | #FACC15 | #FDE047 |
+| `ko` | Preuve manquante, erreur | #B91C1C | #F87171 | #FCA5A5 |
+| `bg` | Fond d'écran | #F8FAFC | #0B1220 | #000000 |
+| `surface` | Cartes, feuilles | #FFFFFF | #111A2E | #121212 |
+| `border` | Bordures, séparateurs | #CBD5E1 | #334155 | #FFFFFF |
+| `text` | Texte principal | #0F172A | #F1F5F9 | #FFFFFF |
+| `text-muted` | Texte secondaire | #475569 | #94A3B8 | #E5E5E5 |
+
+**Contrastes vérifiés.** L'orange d'origine #EA580C n'offrait que 3,56:1 avec un texte blanc ; #9A3412 atteint 7,31:1. Un test automatique contrôle chaque paire texte/fond dans les trois modes : 7:1 pour les actions et le texte principal, 4,5:1 minimum pour les statuts (7:1 en contraste maximal).
 
 **Typographie.** Atkinson Hyperlegible, conçue pour la lisibilité, avec Inter en secours. Corps 18, boutons 20 en semi-gras, titres 24 et 32. Aucun texte sous 16. Les tailles suivent le réglage d'accessibilité du téléphone.
 
