@@ -8,14 +8,12 @@ import { useEffect } from 'react';
 import { AppProviders } from '@/app-providers';
 import { AppStack } from '@/app-stack';
 import { AuthProvider, createSupabaseAuth } from '@/auth/auth';
-import { DataProvider } from '@/data/data-context';
-import { createSupabaseSource } from '@/data/supabase-source';
+import { DataBootstrap } from '@/data/data-bootstrap';
 import { supabase } from '@/lib/supabase';
 
 void SplashScreen.preventAutoHideAsync();
 
 const authService = createSupabaseAuth(supabase);
-const dataSource = createSupabaseSource(supabase);
 
 export default function RootLayout() {
   // Polices embarquées dans l'appli : aucun téléchargement au lancement (hors ligne par défaut).
@@ -32,9 +30,9 @@ export default function RootLayout() {
   return (
     <AppProviders>
       <AuthProvider service={authService}>
-        <DataProvider source={dataSource}>
+        <DataBootstrap>
           <AppStack />
-        </DataProvider>
+        </DataBootstrap>
       </AuthProvider>
     </AppProviders>
   );

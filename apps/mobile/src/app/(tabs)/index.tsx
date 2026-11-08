@@ -1,13 +1,14 @@
 import { featuredJobsite, selectTodayJobsites } from '@preuvio/shared';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { View } from 'react-native';
 import { JobsiteCard } from '@/components/JobsiteCard';
 import { Screen } from '@/components/Screen';
-import { AppText, EmptyState, Icon, Toast } from '@/components/ui';
+import { SyncIndicator } from '@/components/SyncIndicator';
+import { AppText, BigButton, EmptyState } from '@/components/ui';
 import { useJobsites } from '@/data/use-jobsites';
 import { t } from '@/i18n/fr';
-import { formatLongDate, formatTime } from '@/lib/format';
+import { formatLongDate } from '@/lib/format';
 import { localToday, useCurrentPosition } from '@/lib/position';
 import { useTheme } from '@/theme/theme';
 
@@ -17,7 +18,6 @@ export default function Today() {
   const { spacing } = useTheme();
   const { result, failed, refresh } = useJobsites();
   const position = useCurrentPosition();
-  const [soon, setSoon] = useState(false);
 
   const today = localToday();
   const jobsites = useMemo(
@@ -37,17 +37,7 @@ export default function Today() {
         <AppText color="text-muted" style={{ textTransform: 'capitalize' }}>
           {formatLongDate(new Date())}
         </AppText>
-        {result?.stale ? (
-          <View
-            testID="offline-banner"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
-          >
-            <Icon name="cloud-off-outline" color="text-muted" size={20} />
-            <AppText variant="caption" color="text-muted">
-              {t('today.offline', { time: formatTime(result.fetchedAt) })}
-            </AppText>
-          </View>
-        ) : null}
+        <SyncIndicator />
       </View>
 
       {!result && !failed ? <AppText color="text-muted">{t('today.loading')}</AppText> : null}
@@ -66,7 +56,7 @@ export default function Today() {
           icon="calendar-blank-outline"
           title={t('today.empty')}
           actionLabel={t('today.newJobsite')}
-          onAction={() => setSoon(true)} // création rapide de chantier : session S5
+          onAction={() => router.push('/jobsite/new')}
         />
       ) : null}
 
@@ -83,7 +73,14 @@ export default function Today() {
         <JobsiteCard key={j.id} jobsite={j} onPress={() => open(j.id)} />
       ))}
 
-      <Toast visible={soon} message={t('today.newJobsiteSoon')} onDismiss={() => setSoon(false)} />
+      {result && jobsites.length > 0 ? (
+        <BigButton
+          variant="secondary"
+          icon="plus"
+          label={t('today.newJobsite')}
+          onPress={() => router.push('/jobsite/new')}
+        />
+      ) : null}
     </Screen>
   );
 }

@@ -1,6 +1,7 @@
 import { proofProgress } from '@preuvio/shared';
 import { router, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
+import { describeWork } from '@/components/JobsiteCard';
 import { Screen } from '@/components/Screen';
 import { AppText, BigButton, ProgressRing } from '@/components/ui';
 import { useJobsites } from '@/data/use-jobsites';
@@ -29,9 +30,10 @@ export default function JobsiteScreen() {
             {jobsite.address}
           </AppText>
           {jobsite.clientName ? <AppText color="text-muted">{jobsite.clientName}</AppText> : null}
-          {jobsite.operations.length > 0 ? (
-            <AppText>{jobsite.operations.join(' · ')}</AppText>
+          {jobsite.addressPending ? (
+            <AppText color="warn">{t('jobsite.addressPending')}</AppText>
           ) : null}
+          {describeWork(jobsite) ? <AppText>{describeWork(jobsite)}</AppText> : null}
           {total > 0 ? <ProgressRing done={done} total={total} size={120} /> : null}
           <AppText color="text-muted">{t('jobsite.cameraSoon')}</AppText>
         </View>

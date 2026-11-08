@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { clearCache } from '@/data/supabase-source';
 
 /** Opérations de connexion, séparées de Supabase pour les tests. */
 export interface AuthService {
@@ -37,7 +36,6 @@ export function createSupabaseAuth(client: SupabaseClient): AuthService {
       if (error) throw error;
     },
     async signOut() {
-      await clearCache();
       await client.auth.signOut();
     },
   };

@@ -60,5 +60,6 @@ chef d'équipe `+33 6 39 98 00 02`, poseur `+33 6 39 98 00 03`.
 | S2      | Design system                      | Terminée |
 | S3      | Base de données et sécurité        | Terminée |
 | S4      | Connexion et écran « Aujourd'hui » | Terminée |
+| S5      | Hors ligne et synchronisation      | Terminée |
 
 Le plan complet (19 sessions, 5 phases) est dans la section 18 du cahier des charges.

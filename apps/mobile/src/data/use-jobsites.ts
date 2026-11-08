@@ -1,11 +1,11 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useData } from './data-context';
 import type { CachedResult, Jobsite } from './types';
 
 /**
- * Chantiers visibles : la dernière liste connue s'affiche tout de suite, puis se met à jour.
- * Aucun écran de chargement bloquant (principe 5).
+ * Chantiers visibles, lus dans la base locale : affichés tout de suite, réseau ou pas,
+ * et mis à jour à chaque synchronisation ou écriture locale (principe 5).
  */
 export function useJobsites() {
   const data = useData();
@@ -23,16 +23,11 @@ export function useJobsites() {
 
   useFocusEffect(
     useCallback(() => {
-      let alive = true;
-      void data.cachedJobsites().then((cached) => {
-        if (alive && cached) setResult((current) => current ?? cached);
-      });
       void refresh();
-      return () => {
-        alive = false;
-      };
-    }, [data, refresh]),
+    }, [refresh]),
   );
+
+  useEffect(() => data.onChange(() => void refresh()), [data, refresh]);
 
   return { result, failed, refresh };
 }

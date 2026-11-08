@@ -38,7 +38,11 @@ export default function Me() {
         icon="logout"
         label={t('me.signOut')}
         onPress={() => {
-          void auth.signOut().then(() => router.replace('/welcome'));
+          // Les données de l'entreprise ne restent pas sur le téléphone après déconnexion.
+          void data
+            .reset()
+            .then(() => auth.signOut())
+            .then(() => router.replace('/welcome'));
         }}
       />
       {__DEV__ ? (

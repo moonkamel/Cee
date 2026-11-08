@@ -40,6 +40,13 @@
           "isAndroidBackgroundLocationEnabled": false,
           "isIosBackgroundLocationEnabled": false
         }
+      ],
+      "expo-sqlite",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Preuvio ouvre vos contacts pour choisir le client du chantier."
+        }
       ]
     ],
     "experiments": {

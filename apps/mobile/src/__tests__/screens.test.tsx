@@ -3,7 +3,10 @@ import { Stack } from 'expo-router';
 import * as Location from 'expo-location';
 import { AuthProvider, type AuthService } from '@/auth/auth';
 import { DataProvider } from '@/data/data-context';
-import type { CachedResult, DataSource, Jobsite, Profile } from '@/data/types';
+import type { CachedResult, DataSource, Jobsite, NewJobsite, Profile } from '@/data/types';
+import { addressesNear } from '@/lib/geocoding';
+import { pickContact } from '@/lib/contacts';
+import type { SyncStatus } from '@preuvio/shared';
 import { localToday } from '@/lib/position';
 import { ThemeProvider } from '@/theme/theme';
 import TabsLayout from '../app/(tabs)/_layout';
@@ -11,6 +14,7 @@ import Today from '../app/(tabs)/index';
 import Jobsites from '../app/(tabs)/jobsites';
 import Me from '../app/(tabs)/me';
 import JobsiteScreen from '../app/jobsite/[id]';
+import JobsiteNew from '../app/jobsite/new';
 import LoginCode from '../app/login/code';
 import LoginPhone from '../app/login/index';
 import Welcome from '../app/welcome';
@@ -29,10 +33,12 @@ jest.mock('expo-location', () => ({
   Accuracy: { Balanced: 3 },
 }));
 jest.mock('expo-application', () => ({ nativeApplicationVersion: '1.0.0' }));
-jest.mock('@react-native-async-storage/async-storage', () =>
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock est hissé avant les imports
-  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
-);
+jest.mock('@/lib/geocoding', () => ({
+  addressesNear: jest.fn(),
+  searchAddresses: jest.fn(async () => []),
+  nearestAddress: jest.fn(),
+}));
+jest.mock('@/lib/contacts', () => ({ pickContact: jest.fn() }));
 
 // --- Faux services -----------------------------------------------------------------------
 const TODAY = localToday();
@@ -48,6 +54,8 @@ const jobsite = (over: Partial<Jobsite> & { id: string; address: string }): Jobs
   geofenceRadiusM: 150,
   clientName: 'M. Martin',
   operations: ['PAC air/eau'],
+  workTypes: ['pac_air_eau'],
+  addressPending: false,
   proofs: [
     { status: 'captured', required: true },
     { status: 'missing', required: true },
@@ -79,6 +87,7 @@ let jobsites: CachedResult<Jobsite[]> = {
   stale: false,
   fetchedAt: new Date().toISOString(),
 };
+let syncStatus: SyncStatus = { pending: 0, rejected: 0, lastSyncAt: null, offline: false };
 const data: jest.Mocked<DataSource> = {
   listJobsites: jest.fn(async () => jobsites),
   cachedJobsites: jest.fn(async () => null),
@@ -88,6 +97,11 @@ const data: jest.Mocked<DataSource> = {
     role: 'installer' as const,
     companyName: 'Thermi Rénov',
   })),
+  createJobsite: jest.fn(async (_input: NewJobsite) => 'j-nouveau'),
+  syncStatus: jest.fn(async () => syncStatus),
+  syncNow: jest.fn(async () => undefined),
+  onChange: jest.fn((_l: () => void) => () => undefined),
+  reset: jest.fn(async () => undefined),
 };
 
 function TestLayout() {
@@ -111,6 +125,7 @@ const routes = {
   welcome: Welcome,
   'login/index': LoginPhone,
   'login/code': LoginCode,
+  'jobsite/new': JobsiteNew,
   'jobsite/[id]': JobsiteScreen,
 };
 
@@ -133,6 +148,7 @@ beforeEach(() => {
   listener = null;
   withPosition(null);
   jobsites = { data: [], stale: false, fetchedAt: new Date().toISOString() };
+  syncStatus = { pending: 0, rejected: 0, lastSyncAt: null, offline: false };
 });
 
 // --- Critère de fin de S4 ------------------------------------------------------------------
@@ -231,24 +247,35 @@ describe('écran « Aujourd’hui »', () => {
     expect(screen.queryByText('Chantier de demain')).toBeNull();
   });
 
-  it('hors ligne, affiche la dernière liste connue avec sa date', async () => {
+  it('hors ligne, affiche la liste locale avec l’heure et les envois en attente', async () => {
     jobsites = {
       data: [jobsite({ id: 'a', address: 'Chantier en cache' })],
       stale: true,
       fetchedAt: '2026-11-09T14:32:00',
     };
+    syncStatus = { pending: 3, rejected: 0, lastSyncAt: '2026-11-09T14:32:00', offline: true };
     await renderRouter(routes, { initialUrl: '/' });
     expect(await screen.findByText('Chantier en cache')).toBeTruthy();
-    expect(screen.getByText('Hors ligne · liste de 14 h 32')).toBeTruthy();
+    expect(
+      await screen.findByText('Hors ligne · liste de 14 h 32 · 3 en attente d’envoi'),
+    ).toBeTruthy();
   });
 
-  it('sans chantier prévu, propose « Nouveau chantier »', async () => {
+  it('n’affiche aucun indicateur quand tout est à jour', async () => {
+    jobsites.data = [jobsite({ id: 'a', address: 'Chantier' })];
     await renderRouter(routes, { initialUrl: '/' });
-    expect(await screen.findByText("Aucun chantier prévu aujourd'hui")).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Nouveau chantier' })).toBeTruthy();
+    expect(await screen.findByText('Chantier')).toBeTruthy();
+    expect(screen.queryByTestId('sync-indicator')).toBeNull();
   });
 
-  it('sans réseau ni cache, propose de réessayer sans bloquer', async () => {
+  it('sans chantier prévu, « Nouveau chantier » ouvre la création rapide', async () => {
+    const router = await renderRouter(routes, { initialUrl: '/' });
+    expect(await screen.findByText("Aucun chantier prévu aujourd'hui")).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Nouveau chantier' }));
+    await waitFor(() => expect(router.getPathname()).toBe('/jobsite/new'));
+  });
+
+  it('si la base locale est illisible, propose de réessayer sans bloquer', async () => {
     data.listJobsites.mockRejectedValue(new Error('offline'));
     await renderRouter(routes, { initialUrl: '/' });
     expect(await screen.findByText('Pas de réseau pour le moment')).toBeTruthy();
@@ -269,5 +296,89 @@ describe('écran « Aujourd’hui »', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Se déconnecter' }));
     await act(async () => undefined);
     await waitFor(() => expect(router.getPathname()).toBe('/welcome'));
+    // Les données locales de l'entreprise sont effacées avant la déconnexion.
+    expect(data.reset).toHaveBeenCalled();
+    expect(data.reset.mock.invocationCallOrder[0]).toBeLessThan(
+      auth.signOut.mock.invocationCallOrder[0]!,
+    );
+  });
+});
+
+describe('création rapide d’un chantier (S5)', () => {
+  beforeEach(() => {
+    signedInUser = 'u-poseur';
+  });
+
+  it('crée un chantier en 3 étapes : adresse GPS, travaux, client des contacts', async () => {
+    withPosition(HERE);
+    jest.mocked(addressesNear).mockResolvedValue([
+      {
+        label: '8 Allée des Tilleuls 69500 Bron',
+        banId: '69029_x',
+        lat: HERE.lat,
+        lng: HERE.lng,
+      },
+    ]);
+    jest.mocked(pickContact).mockResolvedValue({ fullName: 'M. Martin', phone: '06 39 98 01 01' });
+    const router = await renderRouter(routes, { initialUrl: '/jobsite/new' });
+
+    expect(await screen.findByText('Étape 1 sur 3')).toBeTruthy();
+    await fireEvent.press(
+      await screen.findByRole('button', {
+        name: '8 Allée des Tilleuls 69500 Bron. La plus proche',
+      }),
+    );
+
+    expect(await screen.findByText('Étape 2 sur 3')).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Continuer' }).props.accessibilityState,
+    ).toMatchObject({ disabled: true });
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'PAC air/eau' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'VMC' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuer' }));
+
+    expect(await screen.findByText('Étape 3 sur 3')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Choisir dans mes contacts' }));
+    expect(await screen.findByText('M. Martin')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Créer le chantier' }));
+
+    expect(data.createJobsite).toHaveBeenCalledWith({
+      address: {
+        label: '8 Allée des Tilleuls 69500 Bron',
+        banId: '69029_x',
+        lat: HERE.lat,
+        lng: HERE.lng,
+        pending: false,
+      },
+      workTypes: ['pac_air_eau', 'vmc'],
+      client: { fullName: 'M. Martin', phone: '06 39 98 01 01' },
+    });
+    await waitFor(() => expect(router.getPathname()).toBe('/jobsite/j-nouveau'));
+  });
+
+  it('hors ligne, garde la position GPS et crée le chantier sans client', async () => {
+    withPosition(HERE);
+    jest.mocked(addressesNear).mockRejectedValue(new Error('réseau'));
+    await renderRouter(routes, { initialUrl: '/jobsite/new' });
+
+    await fireEvent.press(
+      await screen.findByRole('button', {
+        name: 'Garder ma position. Adresse complétée au retour du réseau',
+      }),
+    );
+    await fireEvent.press(await screen.findByRole('checkbox', { name: 'Isolation des combles' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuer' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Créer le chantier' }));
+
+    expect(data.createJobsite).toHaveBeenCalledWith({
+      address: expect.objectContaining({
+        pending: true,
+        lat: HERE.lat,
+        lng: HERE.lng,
+        banId: null,
+      }),
+      workTypes: ['combles'],
+      client: null,
+    });
   });
 });

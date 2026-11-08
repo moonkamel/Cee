@@ -11,6 +11,13 @@ values
   ('00000000-0000-0000-0000-000000000000', '10000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated',
    '33639980003', now(), '{"provider":"phone","providers":["phone"]}', '{}', now(), now());
 
+-- Le service d'authentification refuse les jetons NULL sur les comptes créés en SQL.
+update auth.users set
+  confirmation_token = '', recovery_token = '', email_change_token_new = '', email_change = '',
+  email_change_token_current = '', phone_change = '', phone_change_token = '', reauthentication_token = ''
+where id in ('10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002',
+             '10000000-0000-4000-8000-000000000003');
+
 insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 select u.id::text, u.id,
        jsonb_build_object('sub', u.id::text, 'phone', u.phone, 'phone_verified', true),

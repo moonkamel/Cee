@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { JobsiteCard } from '@/components/JobsiteCard';
 import { Screen } from '@/components/Screen';
-import { AppText, EmptyState } from '@/components/ui';
+import { AppText, BigButton, EmptyState } from '@/components/ui';
 import { useJobsites } from '@/data/use-jobsites';
 import { t } from '@/i18n/fr';
 
@@ -15,6 +15,11 @@ export default function Jobsites() {
       <AppText variant="display" accessibilityRole="header">
         {t('jobsites.title')}
       </AppText>
+      <BigButton
+        icon="plus"
+        label={t('today.newJobsite')}
+        onPress={() => router.push('/jobsite/new')}
+      />
       {!result && failed ? (
         <EmptyState
           icon="cloud-off-outline"

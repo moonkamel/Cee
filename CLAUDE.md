@@ -20,7 +20,10 @@ Chaque écran mobile respecte les 8 principes de la section 1.
 - Aucune clé d'API dans apps/mobile : tout appel externe passe par une Edge Function.
   Seule exception : la clé publique Supabase (« publishable »), faite pour être embarquée ;
   la RLS protège les données.
+  Seconde exception : le géocodage de la Base Adresse Nationale (service public, sans clé).
 - Écrans mobiles : données via l'interface DataSource (src/data), jamais Supabase en direct.
+  Toute écriture passe par le moteur de synchronisation (packages/shared/src/sync) : local
+  d'abord, puis file d'envoi. Voir docs/decisions/0001-synchronisation.md.
 - Toute table a un company_id et une politique RLS testée. Seule exception : les entrées globales
   (company_id NULL) de checklist_templates et delegataires, maintenues par Preuvio.
 - Références entre tables d'une entreprise : clés étrangères composites (id, company_id).

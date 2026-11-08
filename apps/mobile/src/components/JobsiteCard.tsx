@@ -6,6 +6,12 @@ import { t } from '@/i18n/fr';
 import { formatDistance } from '@/lib/format';
 import { useTheme } from '@/theme/theme';
 
+/** Opérations de la checklist si elles existent (S8), sinon les travaux prévus à la création. */
+export function describeWork(jobsite: Pick<Jobsite, 'operations' | 'workTypes'>): string {
+  if (jobsite.operations.length > 0) return jobsite.operations.join(' · ');
+  return jobsite.workTypes.map((w) => t(`work.${w}`)).join(' · ');
+}
+
 type Props = {
   jobsite: Jobsite & { distanceM?: number | null; insideGeofence?: boolean };
   onPress: () => void;
@@ -42,8 +48,13 @@ export function JobsiteCard({ jobsite, onPress, featured = false, actionLabel }:
             {jobsite.address}
           </AppText>
           {jobsite.clientName ? <AppText color="text-muted">{jobsite.clientName}</AppText> : null}
-          {jobsite.operations.length > 0 ? (
-            <AppText color="text-muted">{jobsite.operations.join(' · ')}</AppText>
+          {jobsite.addressPending ? (
+            <AppText variant="caption" color="warn">
+              {t('jobsite.addressPending')}
+            </AppText>
+          ) : null}
+          {describeWork(jobsite) ? (
+            <AppText color="text-muted">{describeWork(jobsite)}</AppText>
           ) : null}
           {where ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>

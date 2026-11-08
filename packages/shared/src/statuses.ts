@@ -34,3 +34,15 @@ export type InspectionResult = (typeof INSPECTION_RESULTS)[number];
 /** Rôles utilisateurs (table profiles, section 5). */
 export const ROLES = ['owner', 'admin', 'office', 'lead', 'installer'] as const;
 export type Role = (typeof ROLES)[number];
+
+/** Types de travaux proposés à la création rapide d'un chantier (section 6). */
+export const WORK_TYPES = [
+  'pac_air_eau',
+  'combles',
+  'murs',
+  'vmc',
+  'biomasse',
+  'menuiseries',
+  'photovoltaique',
+] as const;
+export type WorkType = (typeof WORK_TYPES)[number];

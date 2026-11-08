@@ -7,6 +7,7 @@ import {
   PROOF_PHASES,
   PROOF_SLOT_STATUSES,
   ROLES,
+  WORK_TYPES,
 } from './statuses';
 
 // Les statuts existent en double : constantes TypeScript ici, domaines SQL dans les migrations.
@@ -33,6 +34,7 @@ describe('statuts : TypeScript et SQL identiques', () => {
     ['proof_slot_status', PROOF_SLOT_STATUSES],
     ['proof_phase', PROOF_PHASES],
     ['inspection_result', INSPECTION_RESULTS],
+    ['work_type', WORK_TYPES],
   ] as const)('domaine %s', (domain, values) => {
     expect(domainValues(domain)).toEqual([...values]);
   });

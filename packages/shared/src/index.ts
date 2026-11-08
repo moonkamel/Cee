@@ -4,3 +4,4 @@ export * from './geo';
 export * from './phone';
 export * from './proof-progress';
 export * from './today';
+export * from './sync';
