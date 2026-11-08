@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import type { LocalCheck } from './photo-quality';
 
 // Traitement d'une photo juste après le déclenchement (section 6) :
 // fichier rangé dans l'appli, empreinte SHA-256 de l'original, vignette de 400 px.
@@ -12,8 +13,11 @@ export type ProcessedPhoto = {
   localUri: string;
   thumbUri: string | null;
   sha256: string;
-  /** Durées en ms, pour mesurer le critère « photo enregistrée en moins d'une seconde ». */
-  timings: { saveMs: number; hashMs: number; thumbMs: number; totalMs: number };
+  /** Contrôle local (S9), ou null s'il n'a pas été demandé ou n'a pas pu se faire. */
+  check: LocalCheck | null;
+  /** Durées en ms, pour mesurer les critères « enregistrée en moins d'une seconde » (S6)
+   *  et « floue signalée en moins de 300 ms » (S9). */
+  timings: { saveMs: number; hashMs: number; thumbMs: number; checkMs: number; totalMs: number };
 };
 
 function toHex(buffer: ArrayBuffer): string {
@@ -38,7 +42,16 @@ export async function sha256OfFile(file: File): Promise<string> {
 export async function processPhotoFile(
   sourceUri: string,
   photoId: string,
-  { copy = false, size }: { copy?: boolean; size?: { width: number; height: number } } = {},
+  {
+    copy = false,
+    size,
+    check,
+  }: {
+    copy?: boolean;
+    size?: { width: number; height: number };
+    /** Contrôle de netteté et de luminosité, lancé en parallèle de l'empreinte. */
+    check?: (uri: string) => Promise<LocalCheck>;
+  } = {},
 ): Promise<ProcessedPhoto> {
   const t0 = Date.now();
   const dir = photosDirectory();
@@ -68,11 +81,28 @@ export async function processPhotoFile(
     }
   })();
 
-  const [h, th] = await Promise.all([hash, thumb]);
+  const quality = (async () => {
+    if (!check) return { value: null, ms: 0 };
+    try {
+      return { value: await check(original.uri), ms: Date.now() - t1 };
+    } catch {
+      // Contrôle impossible (format inattendu) : la photo est gardée telle quelle.
+      return { value: null, ms: Date.now() - t1 };
+    }
+  })();
+
+  const [h, th, q] = await Promise.all([hash, thumb, quality]);
   return {
     localUri: original.uri,
     thumbUri: th.uri,
     sha256: h.value,
-    timings: { saveMs: t1 - t0, hashMs: h.ms, thumbMs: th.ms, totalMs: Date.now() - t0 },
+    check: q.value,
+    timings: {
+      saveMs: t1 - t0,
+      hashMs: h.ms,
+      thumbMs: th.ms,
+      checkMs: q.ms,
+      totalMs: Date.now() - t0,
+    },
   };
 }

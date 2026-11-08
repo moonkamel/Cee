@@ -154,3 +154,53 @@ describe('chantier PAC air/eau de bout en bout', () => {
     expect(await source.listSlots(jobsiteId)).toEqual([]);
   });
 });
+
+describe('contrôle local : Reprendre ou Garder (S9)', () => {
+  const blurry = {
+    verdict: 'blurry' as const,
+    metrics: { mean: 120, stdDev: 30, darkFraction: 0, brightFraction: 0, sharpness: 0.05 },
+    ms: 80,
+    kept: null,
+  };
+
+  it('« Reprendre » retire la photo logiquement et la preuve redevient à prendre', async () => {
+    const { server, engine, source } = await setup();
+    const jobsiteId = await source.createJobsite({
+      address: { label: 'Bron', banId: null, lat: null, lng: null, pending: false },
+      workTypes: ['pac_air_eau'],
+      client: null,
+    });
+    const slot = (await source.listSlots(jobsiteId))[0]!;
+    await source.recordPhoto({ ...photo(jobsiteId, slot.id, 1), localCheck: blurry });
+    expect((await source.listSlots(jobsiteId))[0]!.status).toBe('captured');
+
+    await source.resolvePhotoCheck('photo-1', false);
+    expect((await source.listSlots(jobsiteId))[0]!.status).toBe('missing');
+    expect(await source.listPhotos(jobsiteId)).toEqual([]);
+
+    await engine.sync({ force: true });
+    await engine.sync({ force: true });
+    // Sur le serveur, la photo existe toujours, retirée et marquée « reprise ».
+    expect(server.rows('photos')[0]).toMatchObject({
+      id: 'photo-1',
+      local_check: { verdict: 'blurry', kept: false },
+      deleted_at: expect.any(String),
+    });
+  });
+
+  it('« Garder » : la photo compte, le choix est noté pour le bureau', async () => {
+    const { engine, source } = await setup();
+    const jobsiteId = await source.createJobsite({
+      address: { label: 'Bron', banId: null, lat: null, lng: null, pending: false },
+      workTypes: ['pac_air_eau'],
+      client: null,
+    });
+    const slot = (await source.listSlots(jobsiteId))[0]!;
+    await source.recordPhoto({ ...photo(jobsiteId, slot.id, 1), localCheck: blurry });
+    await source.resolvePhotoCheck('photo-1', true);
+    expect((await source.listSlots(jobsiteId))[0]!.status).toBe('captured');
+    const row = (await engine.rows('photos'))[0]!;
+    expect(row).toMatchObject({ local_check: { verdict: 'blurry', kept: true } });
+    expect(row.deleted_at).toBeUndefined();
+  });
+});

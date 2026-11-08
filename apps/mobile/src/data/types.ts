@@ -11,6 +11,7 @@ import type {
   WaiverReason,
   WorkType,
 } from '@preuvio/shared';
+import type { LocalCheck } from '@/lib/photo-quality';
 
 /** Chantier tel que l'appli l'affiche. */
 export type Jobsite = TodayJobsiteInput & {
@@ -79,6 +80,8 @@ export type RecordPhotoInput = {
   height: number | null;
   localUri: string;
   thumbUri: string | null;
+  /** Contrôle local de netteté et de luminosité (S9), s'il a été fait. */
+  localCheck?: LocalCheck | null;
 };
 
 export type Profile = { id: string; fullName: string; role: Role; companyName: string | null };
@@ -122,6 +125,11 @@ export interface DataSource {
   listPhotos(jobsiteId: string): Promise<PhotoSummary[]>;
   /** Enregistre la photo et met la preuve à « capturée » ; tout part au serveur ensuite. */
   recordPhoto(input: RecordPhotoInput): Promise<void>;
+  /**
+   * Réponse à l'alerte du contrôle local : « Garder » (la photo compte) ou « Reprendre »
+   * (retirée logiquement, jamais supprimée ; la preuve redevient à prendre).
+   */
+  resolvePhotoCheck(photoId: string, keep: boolean): Promise<void>;
   syncStatus(): Promise<AppSyncStatus>;
   /** Synchronise et envoie les photos tout de suite (geste de l'utilisateur). */
   syncNow(): Promise<void>;

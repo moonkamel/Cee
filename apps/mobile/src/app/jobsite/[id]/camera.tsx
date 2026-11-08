@@ -14,6 +14,7 @@ import {
 } from 'react-native-vision-camera';
 import {
   AppText,
+  BigButton,
   EmptyState,
   Icon,
   ProgressRing,
@@ -27,6 +28,8 @@ import { t } from '@/i18n/fr';
 import { positionForPhoto, useHeadingRef } from '@/lib/heading';
 import { haptics } from '@/lib/haptics';
 import { processPhotoFile } from '@/lib/photo-pipeline';
+import { checkPhotoQuality } from '@/lib/photo-quality';
+import type { QualityIssue } from '@preuvio/shared';
 import { useTheme } from '@/theme/theme';
 import { cameraColors as cam } from '@preuvio/ui-tokens';
 
@@ -50,6 +53,13 @@ export default function CameraScreen() {
   const [zoom, setZoom] = useState<1 | 2>(1);
   const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState(false);
+  const recorded = useRef(new Map<string, Promise<void>>());
+  // Alerte du contrôle local (S9) : la photo est enregistrée, le poseur choisit.
+  const [alert, setAlert] = useState<{
+    photoId: string;
+    slotId: string | null;
+    issue: QualityIssue;
+  } | null>(null);
 
   useEffect(() => {
     if (!permission.hasPermission) void permission.requestPermission();
@@ -75,9 +85,13 @@ export default function CameraScreen() {
   async function capture() {
     if (capturing) return;
     setCapturing(true);
-    const takenAt = new Date().toISOString();
+    const shutter = new Date();
+    const takenAt = shutter.toISOString();
     const position = positionForPhoto(); // en parallèle de la prise de vue
     const photoId = randomUUID();
+    const slotId = current?.id ?? null;
+    let resolveRecorded = () => {};
+    recorded.current.set(photoId, new Promise<void>((r) => (resolveRecorded = r)));
     try {
       const file = await photoOutput.capturePhotoToFile(
         { flashMode: flashAuto ? 'auto' : 'off' },
@@ -85,9 +99,22 @@ export default function CameraScreen() {
       );
       // La rafale reprend dès que le fichier existe ; le traitement continue en arrière-plan.
       setCapturing(false);
-      const slotId = current?.id ?? null;
       const processed = await processPhotoFile(file.filePath, photoId, {
         size: { width: file.width, height: file.height },
+        // L'alerte s'affiche dès le verdict, sans attendre l'empreinte ni la vignette.
+        check: async (uri) => {
+          const result = await checkPhotoQuality(uri);
+          console.info('[photo] contrôle local', {
+            verdict: result.verdict,
+            checkMs: result.ms,
+            sinceShutterMs: new Date().getTime() - shutter.getTime(),
+          });
+          if (result.verdict !== 'ok') {
+            void haptics.error();
+            setAlert({ photoId, slotId, issue: result.verdict });
+          }
+          return result;
+        },
       });
       await data.recordPhoto({
         id: photoId,
@@ -102,25 +129,42 @@ export default function CameraScreen() {
         height: file.height,
         localUri: processed.localUri,
         thumbUri: processed.thumbUri,
+        localCheck: processed.check,
       });
       console.info('[photo] enregistrée', { ...processed.timings });
-      if (slotId && slots) {
-        // Preuve à plusieurs vues : on reste dessus jusqu'au nombre minimal de photos.
-        const taken = photos.filter((p) => p.proofSlotId === slotId).length + 1;
-        const slot = slots.find((s) => s.id === slotId);
-        if (slot && taken >= slot.minPhotos) {
-          const after = slots.map((s) =>
-            s.id === slotId ? { ...s, status: 'captured' as const } : s,
-          );
-          setCurrentId(nextSlot(after, slotId)?.id ?? null);
-          void haptics.proofValidated();
-        }
-      }
+      // Photo douteuse : on reste sur la preuve tant que le poseur n'a pas choisi.
+      if ((processed.check?.verdict ?? 'ok') === 'ok') advanceAfter(slotId);
     } catch {
       setCapturing(false);
       void haptics.error();
       setError(true);
+    } finally {
+      resolveRecorded();
     }
+  }
+
+  function advanceAfter(slotId: string | null) {
+    if (!slotId || !slots) return;
+    // Preuve à plusieurs vues : on reste dessus jusqu'au nombre minimal de photos.
+    const taken = photos.filter((p) => p.proofSlotId === slotId).length + 1;
+    const slot = slots.find((s) => s.id === slotId);
+    if (slot && taken >= slot.minPhotos) {
+      const after = slots.map((s) => (s.id === slotId ? { ...s, status: 'captured' as const } : s));
+      setCurrentId(nextSlot(after, slotId)?.id ?? null);
+      void haptics.proofValidated();
+    }
+  }
+
+  function resolveAlert(keep: boolean) {
+    if (!alert) return;
+    const { photoId, slotId } = alert;
+    // Le choix peut précéder la fin de l'enregistrement : il est appliqué juste après.
+    void (recorded.current.get(photoId) ?? Promise.resolve()).then(() =>
+      data.resolvePhotoCheck(photoId, keep),
+    );
+    if (keep) advanceAfter(slotId);
+    else setCurrentId(slotId);
+    setAlert(null);
   }
 
   async function setZoomLevel(level: 1 | 2) {
@@ -342,6 +386,48 @@ export default function CameraScreen() {
         </View>
       </SafeAreaView>
 
+      {alert ? (
+        <View
+          testID="quality-alert"
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+          style={{
+            position: 'absolute',
+            left: spacing.md,
+            right: spacing.md,
+            bottom: 176,
+            gap: spacing.sm,
+            padding: spacing.md,
+            borderRadius: radius.md,
+            backgroundColor: colors.surface,
+            borderWidth: 2,
+            borderColor: colors.warn,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Icon name="alert-outline" color="warn" />
+            <AppText variant="button" style={{ flex: 1 }}>
+              {t(`quality.${alert.issue}`)}
+            </AppText>
+          </View>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <BigButton
+                icon="camera-retake"
+                label={t('quality.retake')}
+                onPress={() => resolveAlert(false)}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <BigButton
+                variant="secondary"
+                label={t('quality.keep')}
+                onPress={() => resolveAlert(true)}
+              />
+            </View>
+          </View>
+        </View>
+      ) : null}
       <Toast visible={error} message={t('camera.error')} onDismiss={() => setError(false)} />
     </View>
   );

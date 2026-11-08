@@ -305,6 +305,7 @@ export function createLocalSource({
       // Champs locaux : le fichier reste sur le téléphone jusqu'à son envoi (S7).
       await engine.write('photos', 'insert', {
         ...row,
+        local_check: input.localCheck ?? null,
         _localUri: input.localUri,
         _thumbUri: input.thumbUri,
       });
@@ -319,6 +320,35 @@ export function createLocalSource({
             id: row.proof_slot_id,
             status: 'captured',
           });
+        }
+      }
+      syncThenUpload();
+    },
+
+    async resolvePhotoCheck(photoId, keep) {
+      const photo = (await engine.rows('photos')).find((p) => p.id === photoId);
+      if (!photo || photo.deleted_at) return;
+      const check = { ...((photo.local_check as Row | null) ?? {}), kept: keep };
+      if (keep) {
+        await engine.write('photos', 'update', { id: photoId, local_check: check });
+      } else {
+        // Retrait logique : le fichier et sa fiche restent (valeur probante, section 16).
+        await engine.write('photos', 'update', {
+          id: photoId,
+          local_check: check,
+          deleted_at: new Date().toISOString(),
+        });
+        const slotId = str(photo.proof_slot_id);
+        const slot = slotId
+          ? (await engine.rows('proof_slots')).find((s) => s.id === slotId)
+          : null;
+        if (slot && slot.status === 'captured') {
+          const left = (await engine.rows('photos')).filter(
+            (p) => p.proof_slot_id === slotId && !p.deleted_at,
+          ).length;
+          if (left < (num(slot.min_photos) ?? 1)) {
+            await engine.write('proof_slots', 'update', { id: slotId, status: 'missing' });
+          }
         }
       }
       syncThenUpload();

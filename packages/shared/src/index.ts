@@ -9,3 +9,4 @@ export * from './photo';
 export * from './slots';
 export * from './upload';
 export * from './checklists';
+export * from './quality/analyze';

@@ -12,6 +12,7 @@ import type {
 } from '@/data/types';
 import { pickFromGallery } from '@/lib/gallery';
 import { processPhotoFile } from '@/lib/photo-pipeline';
+import { checkPhotoQuality, type LocalCheck } from '@/lib/photo-quality';
 import { ThemeProvider } from '@/theme/theme';
 import CameraScreen from '../app/jobsite/[id]/camera';
 import JobsiteScreen from '../app/jobsite/[id]/index';
@@ -33,6 +34,7 @@ jest.mock('react-native-vision-camera', () => {
   };
 });
 jest.mock('@/lib/photo-pipeline', () => ({ processPhotoFile: jest.fn() }));
+jest.mock('@/lib/photo-quality', () => ({ checkPhotoQuality: jest.fn() }));
 jest.mock('@/lib/heading', () => ({
   useHeadingRef: () => ({ current: 182 }),
   positionForPhoto: jest.fn(async () => ({ lat: 45.738, lng: 4.913, accuracyM: 6 })),
@@ -74,6 +76,13 @@ const slot = (
   waiverValidated: false,
 });
 
+const okCheck: LocalCheck = {
+  verdict: 'ok',
+  metrics: { mean: 120, stdDev: 30, darkFraction: 0, brightFraction: 0, sharpness: 0.4 },
+  ms: 60,
+  kept: null,
+};
+let quality: LocalCheck = okCheck;
 let slots: ProofSlot[] = [];
 let photos: PhotoSummary[] = [];
 const data: jest.Mocked<DataSource> = {
@@ -91,6 +100,7 @@ const data: jest.Mocked<DataSource> = {
   answerQuestion: jest.fn(async (_o: string, _k: string, _v: boolean | number) => undefined),
   waiveSlot: jest.fn(async (_slotId: string, _reason: WaiverReason) => undefined),
   finishJobsite: jest.fn(async (_jobsiteId: string) => undefined),
+  resolvePhotoCheck: jest.fn(async (_photoId: string, _keep: boolean) => undefined),
   recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
   syncStatus: jest.fn(async () => ({
     pending: 0,
@@ -141,12 +151,16 @@ beforeEach(() => {
   ];
   photos = [];
   mockCapture.mockResolvedValue({ filePath: '/tmp/vc-1.jpg', width: 4000, height: 3000 });
-  jest.mocked(processPhotoFile).mockResolvedValue({
+  quality = okCheck;
+  jest.mocked(checkPhotoQuality).mockImplementation(async () => quality);
+  // Le vrai pipeline lance le contrôle en parallèle de l'empreinte : on l'imite.
+  jest.mocked(processPhotoFile).mockImplementation(async (_uri, _id, options) => ({
     localUri: 'file:///doc/photos/photo-1.jpg',
     thumbUri: 'file:///doc/photos/photo-1.thumb.jpg',
     sha256: 'b'.repeat(64),
-    timings: { saveMs: 20, hashMs: 120, thumbMs: 90, totalMs: 140 },
-  });
+    check: options?.check ? await options.check('file:///doc/photos/photo-1.jpg') : null,
+    timings: { saveMs: 20, hashMs: 120, thumbMs: 90, checkMs: 60, totalMs: 140 },
+  }));
 });
 
 describe('caméra guidée (S6)', () => {
@@ -166,6 +180,7 @@ describe('caméra guidée (S6)', () => {
     expect(mockCapture).toHaveBeenCalledWith({ flashMode: 'auto' }, {});
     expect(processPhotoFile).toHaveBeenCalledWith('/tmp/vc-1.jpg', 'photo-1', {
       size: { width: 4000, height: 3000 },
+      check: expect.any(Function),
     });
     expect(data.recordPhoto).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -293,5 +308,63 @@ describe('caméra et checklist (S8)', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Prendre la photo' }));
     await waitFor(() => expect(data.recordPhoto).toHaveBeenCalled());
     expect(screen.getByText('Unité extérieure posée, vue entière')).toBeTruthy();
+  });
+});
+
+describe('contrôle local (S9)', () => {
+  const shoot = async () => {
+    await renderRouter(routes, { initialUrl: '/jobsite/j1/camera' });
+    await screen.findByText('Unité extérieure posée, vue entière');
+    await fireEvent.press(screen.getByRole('button', { name: 'Prendre la photo' }));
+  };
+
+  it('photo nette : aucune alerte, on passe à la suivante', async () => {
+    await shoot();
+    await waitFor(() => expect(data.recordPhoto).toHaveBeenCalled());
+    expect(screen.queryByTestId('quality-alert')).toBeNull();
+    expect(await screen.findByText("Plaque de l'unité extérieure, lisible")).toBeTruthy();
+    expect(data.recordPhoto).toHaveBeenCalledWith(
+      expect.objectContaining({ localCheck: expect.objectContaining({ verdict: 'ok' }) }),
+    );
+  });
+
+  it('photo floue : alerte immédiate, « Reprendre » reste sur la même preuve', async () => {
+    quality = { ...okCheck, verdict: 'blurry' };
+    await shoot();
+    expect(await screen.findByText('Photo floue, reprenez')).toBeTruthy();
+    await waitFor(() => expect(data.recordPhoto).toHaveBeenCalled());
+    // La photo est enregistrée quand même : rien n'est perdu avant le choix.
+    expect(data.recordPhoto).toHaveBeenCalledWith(
+      expect.objectContaining({ localCheck: expect.objectContaining({ verdict: 'blurry' }) }),
+    );
+    expect(screen.getByText('Unité extérieure posée, vue entière')).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Reprendre' }));
+    await waitFor(() => expect(data.resolvePhotoCheck).toHaveBeenCalledWith('photo-1', false));
+    expect(screen.queryByTestId('quality-alert')).toBeNull();
+    expect(screen.getByText('Unité extérieure posée, vue entière')).toBeTruthy();
+  });
+
+  it('photo sombre : « Garder » la compte et passe à la suivante', async () => {
+    quality = { ...okCheck, verdict: 'dark' };
+    await shoot();
+    expect(await screen.findByText('Trop sombre : allumez le flash')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Garder' }));
+    await waitFor(() => expect(data.resolvePhotoCheck).toHaveBeenCalledWith('photo-1', true));
+    expect(await screen.findByText("Plaque de l'unité extérieure, lisible")).toBeTruthy();
+  });
+
+  it('contrôle impossible : la photo est gardée sans alerte', async () => {
+    jest.mocked(checkPhotoQuality).mockRejectedValue(new Error('format'));
+    jest.mocked(processPhotoFile).mockImplementation(async (_uri, _id, options) => ({
+      localUri: 'file:///doc/photos/photo-1.jpg',
+      thumbUri: null,
+      sha256: 'b'.repeat(64),
+      check: options?.check ? await options.check('x').catch(() => null) : null,
+      timings: { saveMs: 20, hashMs: 120, thumbMs: 90, checkMs: 0, totalMs: 140 },
+    }));
+    await shoot();
+    await waitFor(() => expect(data.recordPhoto).toHaveBeenCalled());
+    expect(screen.queryByTestId('quality-alert')).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 -- Règles d'intégrité (sections 5, 13 et 16) : preuves inaltérables, journal d'audit en ajout seul.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(33);
 
 -- ===== Données de test (identiques dans chaque fichier, annulées par le rollback) =====
 -- Entreprise A : owner, admin, office, lead + poseur (équipe A1), poseur sans équipe.
@@ -190,6 +190,14 @@ select is(
    where company_id is null and published and code in ('PAC_AIR_EAU', 'COMBLES_PERDUS')),
   2,
   'les modèles globaux V1 sont publiés et lisibles par chaque entreprise');
+select lives_ok(
+  $$update public.photos set local_check = '{"verdict": "blurry", "kept": true}'
+    where id = 'a8000000-0000-4000-8000-000000000002'$$,
+  'le poseur garde une photo malgré l''alerte du contrôle local');
+select throws_ok(
+  $$update public.photos set local_check = '{"verdict": "parfait"}'
+    where id = 'a8000000-0000-4000-8000-000000000002'$$,
+  '23514', null, 'le verdict du contrôle local est l''un des verdicts prévus');
 select lives_ok(
   $$update public.photos set caption = 'Vue de face', annotations = '[{"type":"arrow"}]'
     where id = 'a8000000-0000-4000-8000-000000000002'$$,
