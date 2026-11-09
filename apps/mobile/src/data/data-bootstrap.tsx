@@ -10,6 +10,7 @@ import { openLocalDb } from './expo-sqlite-db';
 import { createLocalSource } from './local-source';
 import { startSyncScheduler } from './sync-scheduler';
 import { createUploadRunner } from './upload-runner';
+import { listenToNotificationTaps, pushToken } from '@/lib/push';
 
 /**
  * Ouvre la base locale, puis synchronise tant qu'un utilisateur est connecté.
@@ -71,6 +72,16 @@ export function DataBootstrap({ children }: { children: ReactNode }) {
         : null,
     [engine, uploads, userId],
   );
+
+  // Notifications push : jeton enregistré par la file d'envoi, toucher ouvre l'écran utile.
+  useEffect(() => {
+    if (!source || status !== 'signedIn' || !userId) return;
+    const stop = listenToNotificationTaps();
+    void pushToken()
+      .then((p) => (p ? source.registerPushToken(p.token, p.platform) : undefined))
+      .catch(() => undefined);
+    return stop;
+  }, [source, status, userId]);
 
   if (!source) return null;
   return <DataProvider source={source}>{children}</DataProvider>;

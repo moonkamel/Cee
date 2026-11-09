@@ -6,6 +6,7 @@ import { AuthProvider, type AuthService } from '@/auth/auth';
 import { DataProvider } from '@/data/data-context';
 import type {
   PhotoDetail,
+  PhotoRequest,
   VoiceNote,
   AppSyncStatus,
   CachedResult,
@@ -155,6 +156,8 @@ const data: jest.Mocked<DataSource> = {
   listVoiceNotes: jest.fn(async (_jobsiteId: string): Promise<VoiceNote[]> => []),
   getPhoto: jest.fn(async (_photoId: string): Promise<PhotoDetail | null> => null),
   saveAnnotations: jest.fn(async (_photoId: string, _a: Annotation[]) => undefined),
+  listPhotoRequests: jest.fn(async (_jobsiteId?: string): Promise<PhotoRequest[]> => []),
+  registerPushToken: jest.fn(async (_t: string, _p: 'ios' | 'android') => undefined),
   recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
   syncStatus: jest.fn(async () => syncStatus),
   syncNow: jest.fn(async () => undefined),
@@ -778,5 +781,40 @@ describe('notes vocales et annotations (S11)', () => {
     await waitFor(() =>
       expect(data.recordVoiceNote).toHaveBeenCalledWith(expect.objectContaining({ photoId: 'p1' })),
     );
+  });
+});
+
+// --- S12 : le poseur reçoit la demande de reprise -----------------------------------------
+describe('demande de reprise du bureau (S12)', () => {
+  const request: PhotoRequest = {
+    id: 'r1',
+    jobsiteId: 'j1',
+    jobsiteAddress: '8 allée des Tilleuls, Bron',
+    proofSlotId: 's7',
+    instruction: "Plaque de l'unité extérieure",
+    message: 'Plaque illisible, rapprochez-vous',
+    requestedAt: '2026-11-09T10:00:00Z',
+  };
+  beforeEach(() => {
+    signedInUser = 'u-poseur';
+    jobsites.data = [jobsite({ id: 'j1', address: '8 allée des Tilleuls, Bron' })];
+  });
+  afterEach(() => data.listPhotoRequests.mockResolvedValue([]));
+
+  it('« Aujourd’hui » affiche la demande ; un tap ouvre la caméra sur la bonne preuve', async () => {
+    data.listPhotoRequests.mockResolvedValue([request]);
+    const router = await renderRouter(routes, { initialUrl: '/' });
+    expect(await screen.findByText('Photo à reprendre')).toBeTruthy();
+    expect(screen.getByText('« Plaque illisible, rapprochez-vous »')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Reprendre la photo' }));
+    await waitFor(() => expect(router.getPathname()).toBe('/jobsite/j1/camera'));
+    expect(router.getSearchParams()).toMatchObject({ slot: 's7' });
+  });
+
+  it('la fiche du chantier affiche ses demandes', async () => {
+    data.listPhotoRequests.mockResolvedValue([request]);
+    await renderRouter(routes, { initialUrl: '/jobsite/j1' });
+    expect(await screen.findByText("Plaque de l'unité extérieure")).toBeTruthy();
+    expect(data.listPhotoRequests).toHaveBeenCalledWith('j1');
   });
 });

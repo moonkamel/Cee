@@ -71,6 +71,17 @@ export type PhotoSummary = {
   source: PhotoSource;
 };
 
+/** Demande de reprise du bureau, adressée à ce poseur. */
+export type PhotoRequest = {
+  id: string;
+  jobsiteId: string;
+  jobsiteAddress: string;
+  proofSlotId: string | null;
+  instruction: string | null;
+  message: string | null;
+  requestedAt: string;
+};
+
 /** Note vocale, telle que l'écran l'affiche. */
 export type VoiceNote = {
   id: string;
@@ -159,6 +170,10 @@ export interface DataSource {
     durationS: number;
   }): Promise<void>;
   listVoiceNotes(jobsiteId: string): Promise<VoiceNote[]>;
+  /** Demandes de reprise ouvertes adressées à l'utilisateur (tous chantiers si jobsiteId absent). */
+  listPhotoRequests(jobsiteId?: string): Promise<PhotoRequest[]>;
+  /** Jeton push du téléphone, enregistré par la file de synchronisation. */
+  registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void>;
   getPhoto(photoId: string): Promise<PhotoDetail | null>;
   /** Calque d'annotations (la photo d'origine n'est jamais modifiée). */
   saveAnnotations(photoId: string, annotations: Annotation[]): Promise<void>;

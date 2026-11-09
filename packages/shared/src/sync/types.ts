@@ -43,6 +43,10 @@ export const SYNCED_TABLES = {
   voice_notes: { key: ['id'], cursor: 'updated_at' },
   // Lecture seule : problèmes et matériel repérés par le serveur dans les notes.
   note_items: { key: ['id'], cursor: 'updated_at' },
+  // Demandes de reprise du bureau, adressées au poseur (lecture ; closes par la nouvelle photo).
+  photo_requests: { key: ['id'], cursor: 'updated_at' },
+  // Jetons push de ce téléphone (écrits par l'appli, une ligne par appareil).
+  push_tokens: { key: ['token'], cursor: 'updated_at' },
 } as const satisfies Record<string, { key: readonly string[]; cursor: string }>;
 
 export type SyncedTable = keyof typeof SYNCED_TABLES;

@@ -20,6 +20,7 @@ import { useOperations } from '@/data/use-operations';
 import { useVoiceNotes } from '@/data/use-voice-notes';
 import { VoiceNoteButton } from '@/components/VoiceNoteButton';
 import { VoiceNotesList } from '@/components/VoiceNotesList';
+import { PhotoRequestBanners } from '@/components/PhotoRequestBanners';
 import { useProofs } from '@/data/use-proofs';
 import { t } from '@/i18n/fr';
 import { pickFromGallery } from '@/lib/gallery';
@@ -130,6 +131,8 @@ export default function JobsiteScreen() {
           )}
         </View>
       ) : null}
+
+      <PhotoRequestBanners jobsiteId={id} />
 
       {(slots ?? [])
         .filter((s) => s.aiMessage && !s.aiKept)

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { View } from 'react-native';
 import { JobsiteCard } from '@/components/JobsiteCard';
 import { Screen } from '@/components/Screen';
+import { PhotoRequestBanners } from '@/components/PhotoRequestBanners';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import { AppText, BigButton, EmptyState } from '@/components/ui';
 import { useJobsites } from '@/data/use-jobsites';
@@ -39,6 +40,8 @@ export default function Today() {
         </AppText>
         <SyncIndicator />
       </View>
+
+      <PhotoRequestBanners showAddress />
 
       {!result && !failed ? <AppText color="text-muted">{t('today.loading')}</AppText> : null}
 

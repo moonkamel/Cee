@@ -7,6 +7,7 @@ import type {
   DataSource,
   NewJobsite,
   PhotoDetail,
+  PhotoRequest,
   VoiceNote,
   PhotoSummary,
   ProofSlot,
@@ -133,6 +134,8 @@ const data: jest.Mocked<DataSource> = {
   listVoiceNotes: jest.fn(async (_jobsiteId: string): Promise<VoiceNote[]> => []),
   getPhoto: jest.fn(async (_photoId: string): Promise<PhotoDetail | null> => null),
   saveAnnotations: jest.fn(async (_photoId: string, _a: Annotation[]) => undefined),
+  listPhotoRequests: jest.fn(async (_jobsiteId?: string): Promise<PhotoRequest[]> => []),
+  registerPushToken: jest.fn(async (_t: string, _p: 'ios' | 'android') => undefined),
   recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
   syncStatus: jest.fn(async () => ({
     pending: 0,

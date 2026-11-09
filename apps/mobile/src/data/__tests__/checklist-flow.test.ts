@@ -324,3 +324,72 @@ describe('notes vocales et annotations, avec le vrai moteur (S11)', () => {
     expect(await source.getPhoto('inconnue')).toBeNull();
   });
 });
+
+describe('demande de reprise reçue par le poseur (S12)', () => {
+  it('arrive à la synchronisation, puis se clôt avec la nouvelle photo', async () => {
+    const { server, engine, source } = await setup();
+    const jobsiteId = await source.createJobsite({
+      address: {
+        label: '8 allée des Tilleuls 69500 Bron',
+        banId: null,
+        lat: null,
+        lng: null,
+        pending: false,
+      },
+      workTypes: ['pac_air_eau'],
+      client: null,
+    });
+    const slot = (await source.listSlots(jobsiteId))[0]!;
+    await engine.sync({ force: true });
+    await engine.sync({ force: true });
+
+    // Le bureau demande une reprise (écrit sur le serveur par le tableau de bord).
+    server.serverWrite('photo_requests', {
+      id: 'r1',
+      jobsite_id: jobsiteId,
+      proof_slot_id: slot.id,
+      requested_by: 'u-bureau',
+      recipient_id: 'u1',
+      message: 'Plaque illisible, rapprochez-vous',
+      status: 'open',
+      created_at: '2026-11-09T10:00:00Z',
+    });
+    server.serverWrite('photo_requests', {
+      id: 'r2',
+      jobsite_id: jobsiteId,
+      proof_slot_id: slot.id,
+      requested_by: 'u-bureau',
+      recipient_id: 'quelqu-un-d-autre',
+      status: 'open',
+      created_at: '2026-11-09T10:00:00Z',
+    });
+    await engine.sync({ force: true });
+    expect(await source.listPhotoRequests()).toEqual([
+      expect.objectContaining({
+        id: 'r1',
+        jobsiteAddress: '8 allée des Tilleuls 69500 Bron',
+        instruction: slot.instruction,
+        message: 'Plaque illisible, rapprochez-vous',
+      }),
+    ]);
+
+    // La base clôt la demande à la réception de la nouvelle photo (trigger) ; le téléphone suit.
+    server.serverWrite('photo_requests', { ...server.rows('photo_requests')[0]!, status: 'done' });
+    await engine.sync({ force: true });
+    expect(await source.listPhotoRequests(jobsiteId)).toEqual([]);
+  });
+
+  it('jeton push enregistré une seule fois, par la file d’envoi', async () => {
+    const { server, engine, source } = await setup();
+    await source.registerPushToken('ExponentPushToken[abc]', 'android');
+    await source.registerPushToken('ExponentPushToken[abc]', 'android');
+    await engine.sync({ force: true });
+    expect(server.rows('push_tokens')).toEqual([
+      expect.objectContaining({
+        token: 'ExponentPushToken[abc]',
+        profile_id: 'u1',
+        platform: 'android',
+      }),
+    ]);
+  });
+});

@@ -30,6 +30,7 @@ import type {
   DataSource,
   Jobsite,
   Operation,
+  PhotoRequest,
   PhotoSummary,
   Profile,
   ProofSlot,
@@ -297,6 +298,43 @@ export function createLocalSource({
         .filter((n) => n.jobsite_id === jobsiteId && !n.deleted_at)
         .map((n) => toVoiceNote(n, items))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+
+    async listPhotoRequests(jobsiteId) {
+      const userId = currentUserId();
+      const [requests, jobsites, slots] = await Promise.all([
+        engine.rows('photo_requests'),
+        engine.rows('jobsites'),
+        engine.rows('proof_slots'),
+      ]);
+      return requests
+        .filter(
+          (r) =>
+            r.status === 'open' &&
+            r.recipient_id === userId &&
+            (!jobsiteId || r.jobsite_id === jobsiteId),
+        )
+        .map((r): PhotoRequest => ({
+          id: String(r.id),
+          jobsiteId: String(r.jobsite_id),
+          jobsiteAddress: str(jobsites.find((j) => j.id === r.jobsite_id)?.address) ?? '',
+          proofSlotId: str(r.proof_slot_id),
+          instruction: str(slots.find((sl) => sl.id === r.proof_slot_id)?.instruction),
+          message: str(r.message),
+          requestedAt: str(r.created_at) ?? '',
+        }))
+        .sort((a, b) => a.requestedAt.localeCompare(b.requestedAt));
+    },
+
+    async registerPushToken(token, platform) {
+      const userId = currentUserId();
+      if (!userId) return;
+      const known = (await engine.rows('push_tokens')).some(
+        (t) => t.token === token && t.profile_id === userId,
+      );
+      if (known) return;
+      await engine.write('push_tokens', 'insert', { token, profile_id: userId, platform });
+      syncThenUpload();
     },
 
     async getPhoto(photoId) {
