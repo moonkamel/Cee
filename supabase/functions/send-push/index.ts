@@ -26,6 +26,7 @@ Deno.serve(async (req) => {
     .from('notifications')
     .select('id, kind, payload, recipient_id')
     .is('sent_at', null)
+    .neq('channel', 'email') // alertes par e-mail seulement : send-emails
     .gt('created_at', new Date(Date.now() - 86_400_000).toISOString())
     .order('created_at')
     .limit(BATCH);

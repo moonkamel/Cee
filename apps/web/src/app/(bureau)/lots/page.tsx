@@ -1,46 +1,71 @@
-import { batchStatus } from '@preuvio/shared';
+import { batchStatus, formatParis, permissions } from '@preuvio/shared';
+import Link from 'next/link';
 import { Suspense } from 'react';
-import { loadDashboard } from '@/lib/queries';
+import { CreateBatchForm } from '@/components/BatchForms';
+import { currentThreshold, loadBatches } from '@/lib/batches';
+import { currentUser } from '@/lib/dal';
+import { loadDelegataires } from '@/lib/exports/queries';
 
 export const metadata = { title: 'Lots CEE · Preuvio' };
 
+const LEVEL = {
+  over: { word: 'Au-dessus du seuil', cls: 'border-2 border-ko', text: 'text-ko' },
+  near: { word: 'Proche du seuil', cls: 'border-2 border-warn', text: 'text-warn' },
+  normal: { word: 'Sous le seuil', cls: 'border border-border', text: 'text-ok' },
+} as const;
+
+const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
+
 async function Batches() {
-  const data = await loadDashboard();
-  if (data.batches.length === 0) {
-    return (
-      <p className="text-text-muted">
-        Aucun lot ouvert. Le suivi des lots arrive avec les exports (S14-S15).
-      </p>
-    );
-  }
+  const [user, batches, threshold, delegataires] = await Promise.all([
+    currentUser(),
+    loadBatches(),
+    currentThreshold(),
+    loadDelegataires(),
+  ]);
   return (
-    <ul className="flex flex-col gap-3">
-      {data.batches.map((b) => {
-        const s = batchStatus(
-          b.inspections.map((i) => i.result),
-          data.threshold,
-        );
-        return (
-          <li
-            key={b.id}
-            className={`flex flex-col gap-1 rounded-xl bg-surface p-4 ${s.near ? 'border-2 border-ko' : 'border border-border'}`}
-          >
-            <span className="text-lg font-bold">{b.operation_code}</span>
-            <span>
-              {s.done} contrôle(s) · taux observé {Math.round(s.rate * 1000) / 10} % · seuil{' '}
-              {Math.round(data.threshold * 1000) / 10} %
-            </span>
-            {s.failuresBeforeOver !== null ? (
-              <span className={s.near ? 'font-bold text-ko' : 'text-text-muted'}>
-                {s.over
-                  ? 'Seuil dépassé'
-                  : `Si ${s.failuresBeforeOver} chantier(s) de plus sont non satisfaisants, ce lot dépasse le seuil.`}
-              </span>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      {permissions(user.role).export ? <CreateBatchForm delegataires={delegataires} /> : null}
+      {batches.length === 0 ? <p className="text-text-muted">Aucun lot pour l’instant.</p> : null}
+      <ul className="flex flex-col gap-3">
+        {batches.map((b) => {
+          const s = batchStatus(
+            b.inspections.map((i) => i.result),
+            threshold,
+          );
+          const level = LEVEL[s.over ? 'over' : s.near ? 'near' : 'normal'];
+          return (
+            <li key={b.id}>
+              <Link
+                href={`/lots/${b.id}`}
+                className={`flex flex-col gap-1 rounded-xl bg-surface p-4 no-underline ${level.cls}`}
+              >
+                <span className="text-lg font-bold">
+                  {b.operation_code}
+                  {b.delegataires ? ` · ${b.delegataires.name}` : ''}
+                </span>
+                <span className="text-text-muted">
+                  {b.period_start ? `du ${formatParis(`${b.period_start}T12:00:00Z`, false)}` : ''}
+                  {b.period_end
+                    ? ` au ${formatParis(`${b.period_end}T12:00:00Z`, false)}`
+                    : ''} · {b.cee_batch_jobsites.length} chantier(s)
+                </span>
+                <span>
+                  {s.done} contrôle(s) · taux observé {pct(s.rate)} · seuil {pct(threshold)} ·{' '}
+                  <strong className={level.text}>{level.word}</strong>
+                </span>
+                {s.failuresBeforeOver !== null && !s.over ? (
+                  <span className={s.near ? 'font-bold text-warn' : 'text-text-muted'}>
+                    Si {s.failuresBeforeOver} chantier(s) de plus sont jugés non satisfaisants, ce
+                    lot dépasse le seuil.
+                  </span>
+                ) : null}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 

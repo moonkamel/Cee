@@ -68,5 +68,8 @@ chef d'équipe `+33 6 39 98 00 02`, poseur `+33 6 39 98 00 03`.
 | S10     | Pré-contrôle IA                    | Terminée |
 | S11     | Notes vocales et annotations       | Terminée |
 | S12     | Tableau de bord web                | Terminée |
+| S13     | Rapports PDF                       | Terminée |
+| S14     | Exports délégataires               | Terminée |
+| S15     | Lots CEE et alertes                | Terminée |
 
 Le plan complet (19 sessions, 5 phases) est dans la section 18 du cahier des charges.

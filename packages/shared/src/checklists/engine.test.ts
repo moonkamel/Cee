@@ -113,6 +113,7 @@ describe('preuves attendues', () => {
       'Unité intérieure posée (3)',
     ]);
     expect(itemOf(template, 'indoor_unit#2')?.key).toBe('indoor_unit');
+    expect(itemOf(template, 'indoor_unit#2~reprise-1')?.key).toBe('indoor_unit');
     expect(itemOf(template, 'inconnu')).toBeNull();
   });
 
@@ -158,6 +159,21 @@ describe('suivre les réponses sans rien supprimer', () => {
         { id: 's-indoor_unit#1', changes: { instruction: 'Unité intérieure posée' } },
       ]),
     );
+  });
+
+  it('les preuves de reprise après contrôle restent affichées, quelles que soient les réponses', () => {
+    const start = [
+      ...existing({}),
+      {
+        id: 'r1',
+        item_key: 'old_boiler~reprise-1',
+        instruction: 'x',
+        position: 0,
+        applicable: true,
+      },
+    ];
+    const r = reconcileSlots(start, planSlots(template, { old_boiler_removed: false }));
+    expect(r.update).toEqual([{ id: 's-old_boiler', changes: { applicable: false } }]);
   });
 
   it('masque puis réaffiche une preuve selon la réponse', () => {

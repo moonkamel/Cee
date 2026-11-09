@@ -65,6 +65,8 @@ export type PlannedSlot = {
 };
 
 const REPEAT_SEPARATOR = '#';
+/** Preuve de reprise après contrôle (même valeur que CORRECTION_SEPARATOR de ../alerts). */
+const CORRECTION_MARK = '~reprise-';
 
 /** Preuves attendues pour ces réponses, dans l'ordre du modèle. */
 export function planSlots(template: ChecklistTemplate, answers: ChecklistAnswers): PlannedSlot[] {
@@ -129,9 +131,10 @@ export function reconcileSlots(
     if (current.position !== p.position) changes.position = p.position;
     if (Object.keys(changes).length > 0) update.push({ id: current.id, changes });
   }
-  // Unités en trop (le nombre a baissé) : masquées, pas supprimées.
+  // Unités en trop (le nombre a baissé) : masquées, pas supprimées. Les preuves de reprise
+  // après un contrôle (S15) ne viennent pas du modèle : les réponses ne les touchent pas.
   for (const s of existing) {
-    if (!plannedKeys.has(s.item_key) && s.applicable) {
+    if (!plannedKeys.has(s.item_key) && s.applicable && !s.item_key.includes(CORRECTION_MARK)) {
       update.push({ id: s.id, changes: { applicable: false } });
     }
   }
@@ -280,6 +283,6 @@ export function slotRow(
 
 /** Élément du modèle d'une preuve (« unit#2 » → « unit »), pour l'exemple et les contrôles IA. */
 export function itemOf(template: ChecklistTemplate, itemKey: string) {
-  const base = itemKey.split(REPEAT_SEPARATOR)[0];
+  const base = itemKey.split(CORRECTION_MARK)[0]!.split(REPEAT_SEPARATOR)[0];
   return template.items.find((i) => i.key === base) ?? null;
 }
