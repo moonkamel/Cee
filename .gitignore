@@ -7,3 +7,7 @@ dist/
 .env
 .env.*
 !.env.example
+!apps/mobile/.env
+!apps/web/.env
+supabase/functions/deno.lock
+fixtures/ai-eval/report.json

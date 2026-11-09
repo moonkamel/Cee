@@ -1,0 +1,79 @@
+{
+  "code": "COMBLES_PERDUS",
+  "version": "1.0.0",
+  "trade": "isolation",
+  "cee_operation": "BAR-EN-101",
+  "title": "Isolation des combles perdus",
+  "review": { "status": "draft" },
+  "questions": [
+    {
+      "key": "zones",
+      "label": "Nombre de zones de combles",
+      "type": "number",
+      "min": 1,
+      "max": 6,
+      "default": 1
+    },
+    { "key": "hatch_present", "label": "Trappe d'accès dans le logement ?", "type": "yes_no" }
+  ],
+  "items": [
+    {
+      "key": "facade",
+      "phase": "avant",
+      "label": "Façade du logement, numéro visible",
+      "hint": "Reculez pour cadrer toute la façade",
+      "ai_checks": ["sharp", "well_lit"]
+    },
+    {
+      "key": "attic_before",
+      "phase": "avant",
+      "label": "Combles avant travaux, vue large",
+      "hint": "Allumez une lampe, cadrez tout le volume",
+      "repeat": "zones",
+      "ai_checks": ["well_lit"]
+    },
+    {
+      "key": "protections",
+      "phase": "pendant",
+      "label": "Protection des spots et conduits",
+      "hint": "Capots et écarts au feu visibles",
+      "ai_checks": ["sharp", "well_lit"]
+    },
+    {
+      "key": "insulation_label",
+      "phase": "pendant",
+      "label": "Étiquette du sac d'isolant",
+      "hint": "Résistance thermique lisible",
+      "ai_checks": ["plate_readable"],
+      "extract": ["brand", "product", "thermal_resistance"]
+    },
+    {
+      "key": "attic_after",
+      "phase": "apres",
+      "label": "Combles isolés, vue large",
+      "repeat": "zones",
+      "ai_checks": ["well_lit"]
+    },
+    {
+      "key": "thickness",
+      "phase": "apres",
+      "label": "Épaisseur avec règle graduée visible",
+      "hint": "Règle posée droite, graduations lisibles",
+      "repeat": "zones",
+      "ai_checks": ["sharp", "ruler_readable"]
+    },
+    {
+      "key": "markers",
+      "phase": "apres",
+      "label": "Piges de repérage en place",
+      "ai_checks": ["sharp"]
+    },
+    {
+      "key": "hatch",
+      "phase": "apres",
+      "label": "Trappe d'accès isolée et fermée",
+      "show_if": { "hatch_present": true },
+      "ai_checks": ["sharp", "well_lit"]
+    }
+  ]
+}

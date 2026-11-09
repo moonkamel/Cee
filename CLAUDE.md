@@ -18,7 +18,15 @@ Chaque écran mobile respecte les 8 principes de la section 1.
 
 ## Règles
 - Aucune clé d'API dans apps/mobile : tout appel externe passe par une Edge Function.
-- Toute table a un company_id et une politique RLS testée.
+  Seule exception : la clé publique Supabase (« publishable »), faite pour être embarquée ;
+  la RLS protège les données.
+  Seconde exception : le géocodage de la Base Adresse Nationale (service public, sans clé).
+- Écrans mobiles : données via l'interface DataSource (src/data), jamais Supabase en direct.
+  Toute écriture passe par le moteur de synchronisation (packages/shared/src/sync) : local
+  d'abord, puis file d'envoi. Voir docs/decisions/0001-synchronisation.md.
+- Toute table a un company_id et une politique RLS testée. Seule exception : les entrées globales
+  (company_id NULL) de checklist_templates et delegataires, maintenues par Preuvio.
+- Références entre tables d'une entreprise : clés étrangères composites (id, company_id).
 - Une photo n'est jamais modifiée ni supprimée physiquement.
 - Couleurs et tailles uniquement via packages/ui-tokens.
 - Textes d'interface en français, via les fichiers de traduction ; consignes de 8 mots maximum.
@@ -32,4 +40,5 @@ Chaque écran mobile respecte les 8 principes de la section 1.
 3. Fin de session : pnpm lint, pnpm typecheck, pnpm test, puis résumé.
 
 ## Commandes
-pnpm dev · pnpm test · pnpm lint · pnpm typecheck · supabase start · supabase db reset
+pnpm dev · pnpm test · pnpm lint · pnpm typecheck · supabase start · supabase db reset · supabase test db
+Sans Docker : scripts/db-local/run-tests.sh (Postgres nu + imitation de Supabase, voir le script)

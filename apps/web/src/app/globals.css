@@ -1,17 +1,27 @@
 @import 'tailwindcss';
+@import '@fontsource/atkinson-hyperlegible/400.css';
+@import '@fontsource/atkinson-hyperlegible/700.css';
 
-/* Les valeurs des couleurs viennent de @preuvio/ui-tokens (voir tokens.ts). */
-@theme {
-  --color-action: initial;
-  --color-brand: initial;
-  --color-ok: initial;
-  --color-warn: initial;
-  --color-ko: initial;
-  --color-bg: initial;
-  --color-surface: initial;
-  --color-text: initial;
-  --color-text-muted: initial;
+/* Les valeurs des couleurs viennent de @preuvio/ui-tokens (variables --pv-*, voir tokens.ts) ;
+   « inline » fait pointer chaque utilitaire Tailwind sur la variable, réglée par thème. */
+@theme inline {
+  --color-action: var(--pv-action);
+  --color-on-action: var(--pv-on-action);
+  --color-brand: var(--pv-brand);
+  --color-ok: var(--pv-ok);
+  --color-warn: var(--pv-warn);
+  --color-ko: var(--pv-ko);
+  --color-bg: var(--pv-bg);
+  --color-surface: var(--pv-surface);
+  --color-border: var(--pv-border);
+  --color-text: var(--pv-text);
+  --color-text-muted: var(--pv-text-muted);
   --font-sans: 'Atkinson Hyperlegible', Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+a {
+  color: var(--pv-brand);
+  text-decoration: underline;
 }
 
 body {

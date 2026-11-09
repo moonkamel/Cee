@@ -1,4 +1,8 @@
-// Les modèles de checklists (PAC air/eau, isolation des combles…) arrivent en session S8,
-// validés par le schéma zod de @preuvio/shared. Chaque modèle doit être relu par un
-// professionnel du métier avant publication (section 7).
-export const templates: readonly unknown[] = [];
+// Modèles globaux de checklists, maintenus par Preuvio (section 7), en JSON versionné.
+// Contenu à faire relire par un professionnel du métier avant usage réel : tant que
+// `review.status` vaut « draft », l'appli et le bureau l'affichent comme brouillon.
+import combles from './global/combles-perdus.json' with { type: 'json' };
+import pacAirEau from './global/pac-air-eau.json' with { type: 'json' };
+
+/** Modèles globaux, bruts : à valider par `parseTemplate` de @preuvio/shared. */
+export const globalTemplates: readonly unknown[] = [pacAirEau, combles];

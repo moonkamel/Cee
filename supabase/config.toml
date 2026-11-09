@@ -257,20 +257,27 @@ otp_expiry = 3600
 # content_path = "./supabase/templates/password_changed_notification.html"
 
 [auth.sms]
-# Allow/disallow the phone provider. When false, users can't sign up or sign in with SMS.
-# To block new signups only, set enable_signup = false under [auth] instead.
-enabled = false
+# Connexion par code SMS (section 14) : c'est le mode de connexion principal des poseurs.
+enabled = true
 # If enabled, users need to confirm their phone number before signing in.
-enable_confirmations = false
+enable_confirmations = true
 # Template for sending OTP to users
-template = "Your code is {{ .Code }}"
+template = "Preuvio : votre code est {{ .Code }}"
 # Controls the minimum amount of time that must pass before sending another sms otp.
-max_frequency = "5s"
+max_frequency = "30s"
 
-# Use pre-defined map of phone number to OTP for testing.
-# Keys are the phone number with country code and without the + prefix.
-# [auth.sms.test_otp]
-# 14152127777 = "123456"
+# Numéros fictifs (plage ARCEP 06 39 98) des utilisateurs de démo de seed.sql : code fixe, aucun SMS envoyé.
+[auth.sms.test_otp]
+33639980001 = "123456"
+33639980002 = "123456"
+33639980003 = "123456"
+
+# Envoi des SMS par Brevo via l'Edge Function send-sms (Supabase ne gère pas Brevo nativement).
+# À activer une fois la clé Brevo configurée : voir supabase/functions/send-sms/index.ts.
+[auth.hook.send_sms]
+enabled = false
+uri = "http://host.docker.internal:54321/functions/v1/send-sms"
+secrets = "env(SEND_SMS_HOOK_SECRETS)"
 
 # Configure logged in session timeouts.
 # [auth.sessions]
@@ -390,8 +397,20 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
-# [edge_runtime.secrets]
-# secret_key = "env(SECRET_VALUE)"
+# Local et CI uniquement : pré-contrôle IA factice (aucun appel externe, aucune clé).
+# En production, AI_PROVIDER est absent et ANTHROPIC_API_KEY est un secret du projet.
+[edge_runtime.secrets]
+AI_PROVIDER = "fake"
+
+# Appelée par pg_cron avec la clé de service, vérifiée par la fonction elle-même.
+[functions.analyze-photos]
+verify_jwt = false
+
+[functions.transcribe-notes]
+verify_jwt = false
+
+[functions.send-push]
+verify_jwt = false
 
 [analytics]
 enabled = true

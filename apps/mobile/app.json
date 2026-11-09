@@ -10,7 +10,10 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "fr.preuvio.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Preuvio utilise l'appareil photo pour photographier les preuves de vos chantiers."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +23,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "fr.preuvio.app"
+      "package": "fr.preuvio.app",
+      "permissions": ["android.permission.CAMERA"]
     },
     "plugins": [
       "expo-router",
@@ -30,6 +34,30 @@
           "backgroundColor": "#1F3A5F",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Preuvio utilise votre position pour trouver le chantier le plus proche.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Preuvio ouvre vos contacts pour choisir le client du chantier."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Preuvio ouvre vos photos pour ajouter une photo libre au chantier.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ]
     ],
