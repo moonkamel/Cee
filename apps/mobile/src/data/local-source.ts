@@ -1,5 +1,8 @@
 import {
+  annotationsSchema,
   buildOperation,
+  buildVoiceNoteRow,
+  parseAnnotations,
   buildPhotoRow,
   buildQuickJobsite,
   effectiveAnswers,
@@ -23,7 +26,15 @@ import {
 } from '@preuvio/shared';
 import { localToday } from '@/lib/position';
 import { WIFI_ONLY_META } from './settings';
-import type { DataSource, Jobsite, Operation, PhotoSummary, Profile, ProofSlot } from './types';
+import type {
+  DataSource,
+  Jobsite,
+  Operation,
+  PhotoSummary,
+  Profile,
+  ProofSlot,
+  VoiceNote,
+} from './types';
 import type { UploadRunner } from './upload-runner';
 
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -146,6 +157,26 @@ export function toOperation(o: Row): Operation {
   };
 }
 
+export function toVoiceNote(n: Row, items: Row[]): VoiceNote {
+  return {
+    id: String(n.id),
+    jobsiteId: String(n.jobsite_id),
+    photoId: str(n.photo_id),
+    durationS: num(n.duration_s) ?? 0,
+    createdAt: str(n.created_at) ?? str(n._recordedAt) ?? '',
+    status: (str(n.status) as VoiceNote['status']) ?? 'pending',
+    text: str(n.transcript_clean) ?? str(n.transcript),
+    items: items
+      .filter((i) => i.voice_note_id === n.id)
+      .map((i) => ({
+        kind: i.kind === 'material' ? 'material' : 'problem',
+        summary: str(i.summary) ?? '',
+        quantity: num(i.quantity),
+        unit: str(i.unit),
+      })),
+  };
+}
+
 export function toPhotoSummary(p: Row): PhotoSummary {
   return {
     id: String(p.id),
@@ -242,6 +273,48 @@ export function createLocalSource({
       return (await engine.rows('proof_slots'))
         .filter((s) => s.jobsite_id === jobsiteId && s.applicable !== false)
         .map((s) => withAiAlert(toProofSlot(s), latest.get(String(s.id))));
+    },
+
+    async recordVoiceNote(input) {
+      const userId = currentUserId();
+      if (!userId) throw new Error('Utilisateur non connecté');
+      const profile = (await engine.rows('profiles')).find((p) => p.id === userId);
+      const companyId = str(profile?.company_id);
+      if (!companyId) throw new Error('Entreprise inconnue : synchronisation pas encore faite');
+      const row = buildVoiceNoteRow({ ...input, companyId, authorId: userId });
+      await engine.write('voice_notes', 'insert', {
+        ...row,
+        status: 'pending',
+        _localUri: input.localUri,
+        _recordedAt: new Date().toISOString(),
+      });
+      syncThenUpload();
+    },
+
+    async listVoiceNotes(jobsiteId) {
+      const items = await engine.rows('note_items');
+      return (await engine.rows('voice_notes'))
+        .filter((n) => n.jobsite_id === jobsiteId && !n.deleted_at)
+        .map((n) => toVoiceNote(n, items))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+
+    async getPhoto(photoId) {
+      const p = (await engine.rows('photos')).find((r) => r.id === photoId);
+      if (!p || p.deleted_at) return null;
+      return {
+        ...toPhotoSummary(p),
+        uri: str(p._localUri) ?? str(p._thumbUri),
+        annotations: parseAnnotations(p.annotations),
+      };
+    },
+
+    async saveAnnotations(photoId, annotations) {
+      await engine.write('photos', 'update', {
+        id: photoId,
+        annotations: annotationsSchema.parse(annotations),
+      });
+      syncThenUpload();
     },
 
     async keepDespiteAi(slotId) {

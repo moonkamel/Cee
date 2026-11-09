@@ -1,4 +1,4 @@
-import type { WaiverReason } from '@preuvio/shared';
+import type { Annotation, WaiverReason } from '@preuvio/shared';
 import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 import { Stack } from 'expo-router';
 import { AuthProvider, type AuthService } from '@/auth/auth';
@@ -6,6 +6,8 @@ import { DataProvider } from '@/data/data-context';
 import type {
   DataSource,
   NewJobsite,
+  PhotoDetail,
+  VoiceNote,
   PhotoSummary,
   ProofSlot,
   RecordPhotoInput,
@@ -41,6 +43,27 @@ jest.mock('@/lib/heading', () => ({
 }));
 jest.mock('@/lib/gallery', () => ({ pickFromGallery: jest.fn() }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'photo-1' }));
+jest.mock('@/lib/voice', () => {
+  // Faux micro : appui long → enregistrement, relâcher → note de 7 s (expo-audio est natif).
+  const { useState } = jest.requireActual<typeof import('react')>('react');
+  return {
+    useVoiceRecorder: (
+      onRecorded: (n: { id: string; localUri: string; durationS: number }) => void,
+    ) => {
+      const [recording, setRecording] = useState(false);
+      return {
+        recording,
+        levels: [],
+        denied: false,
+        start: async () => setRecording(true),
+        stop: async () => {
+          setRecording(false);
+          onRecorded({ id: 'note-1', localUri: 'file:///voice/note-1.m4a', durationS: 7 });
+        },
+      };
+    },
+  };
+});
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(() => Promise.resolve()),
   notificationAsync: jest.fn(() => Promise.resolve()),
@@ -104,6 +127,12 @@ const data: jest.Mocked<DataSource> = {
   finishJobsite: jest.fn(async (_jobsiteId: string) => undefined),
   resolvePhotoCheck: jest.fn(async (_photoId: string, _keep: boolean) => undefined),
   keepDespiteAi: jest.fn(async (_slotId: string) => undefined),
+  recordVoiceNote: jest.fn(
+    async (_input: Parameters<DataSource['recordVoiceNote']>[0]) => undefined,
+  ),
+  listVoiceNotes: jest.fn(async (_jobsiteId: string): Promise<VoiceNote[]> => []),
+  getPhoto: jest.fn(async (_photoId: string): Promise<PhotoDetail | null> => null),
+  saveAnnotations: jest.fn(async (_photoId: string, _a: Annotation[]) => undefined),
   recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
   syncStatus: jest.fn(async () => ({
     pending: 0,
@@ -369,5 +398,34 @@ describe('contrôle local (S9)', () => {
     await shoot();
     await waitFor(() => expect(data.recordPhoto).toHaveBeenCalled());
     expect(screen.queryByTestId('quality-alert')).toBeNull();
+  });
+});
+
+describe('note vocale depuis la caméra (S11)', () => {
+  it('rattachée à la dernière photo prise', async () => {
+    photos = [
+      {
+        id: 'last',
+        proofSlotId: 's1',
+        thumbUri: null,
+        takenAt: '',
+        outsideGeofence: false,
+        source: 'camera',
+      },
+    ];
+    await renderRouter(routes, { initialUrl: '/jobsite/j1/camera' });
+    await fireEvent(
+      await screen.findByRole('button', { name: 'Maintenez pour parler' }),
+      'longPress',
+    );
+    await fireEvent(
+      screen.getByRole('button', { name: 'Enregistrement… relâchez pour finir' }),
+      'pressOut',
+    );
+    await waitFor(() =>
+      expect(data.recordVoiceNote).toHaveBeenCalledWith(
+        expect.objectContaining({ jobsiteId: 'j1', photoId: 'last', durationS: 7 }),
+      ),
+    );
   });
 });

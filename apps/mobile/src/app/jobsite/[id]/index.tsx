@@ -2,7 +2,7 @@ import { nextSlot, proofProgress, proofTone } from '@preuvio/shared';
 import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Image, Pressable, ScrollView, View } from 'react-native';
 import { describeWork } from '@/components/JobsiteCard';
 import { Screen } from '@/components/Screen';
 import {
@@ -17,6 +17,9 @@ import {
 import { useData } from '@/data/data-context';
 import { useJobsites } from '@/data/use-jobsites';
 import { useOperations } from '@/data/use-operations';
+import { useVoiceNotes } from '@/data/use-voice-notes';
+import { VoiceNoteButton } from '@/components/VoiceNoteButton';
+import { VoiceNotesList } from '@/components/VoiceNotesList';
 import { useProofs } from '@/data/use-proofs';
 import { t } from '@/i18n/fr';
 import { pickFromGallery } from '@/lib/gallery';
@@ -31,8 +34,9 @@ export default function JobsiteScreen() {
   const { result } = useJobsites();
   const { slots, photos } = useProofs(id);
   const operations = useOperations(id);
+  const notes = useVoiceNotes(id);
   const data = useData();
-  const { spacing } = useTheme();
+  const { spacing, radius } = useTheme();
   const [imported, setImported] = useState(false);
   const jobsite = result?.data.find((j) => j.id === id);
   const { done, total } = proofProgress(slots ?? []);
@@ -162,6 +166,41 @@ export default function JobsiteScreen() {
       ) : (
         <AppText color="text-muted">{t('jobsite.noChecklist')}</AppText>
       )}
+
+      {photos.length > 0 ? (
+        <View style={{ gap: spacing.sm }}>
+          <AppText variant="button" accessibilityRole="header">
+            {t('jobsite.photos')}
+          </AppText>
+          <ScrollView horizontal contentContainerStyle={{ gap: spacing.sm }}>
+            {photos.map((p) => (
+              <Pressable
+                key={p.id}
+                accessibilityRole="button"
+                accessibilityLabel={t('photo.title')}
+                onPress={() =>
+                  router.push({
+                    pathname: '/jobsite/[id]/photo/[photoId]',
+                    params: { id, photoId: p.id },
+                  })
+                }
+              >
+                {p.thumbUri ? (
+                  <Image
+                    source={{ uri: p.thumbUri }}
+                    style={{ width: 88, height: 88, borderRadius: radius.sm }}
+                  />
+                ) : (
+                  <View style={{ width: 88, height: 88, borderRadius: radius.sm }} />
+                )}
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+
+      <VoiceNoteButton jobsiteId={id} />
+      <VoiceNotesList notes={notes} />
 
       {freeCount > 0 ? (
         <AppText color="text-muted">{t('jobsite.freePhotos', { count: freeCount })}</AppText>

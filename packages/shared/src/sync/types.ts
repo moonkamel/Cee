@@ -40,6 +40,9 @@ export const SYNCED_TABLES = {
   jobsite_operations: { key: ['id'], cursor: 'updated_at' },
   proof_slots: { key: ['id'], cursor: 'updated_at' },
   photos: { key: ['id'], cursor: 'updated_at' },
+  voice_notes: { key: ['id'], cursor: 'updated_at' },
+  // Lecture seule : problèmes et matériel repérés par le serveur dans les notes.
+  note_items: { key: ['id'], cursor: 'updated_at' },
 } as const satisfies Record<string, { key: readonly string[]; cursor: string }>;
 
 export type SyncedTable = keyof typeof SYNCED_TABLES;

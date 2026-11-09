@@ -1,4 +1,5 @@
 import type {
+  Annotation,
   JobsiteStatus,
   PhotoSource,
   ProofPhase,
@@ -70,6 +71,31 @@ export type PhotoSummary = {
   source: PhotoSource;
 };
 
+/** Note vocale, telle que l'écran l'affiche. */
+export type VoiceNote = {
+  id: string;
+  jobsiteId: string;
+  photoId: string | null;
+  durationS: number;
+  createdAt: string;
+  status: 'pending' | 'transcribing' | 'done' | 'failed';
+  /** Texte nettoyé par l'IA, sinon la transcription brute, sinon null (en attente). */
+  text: string | null;
+  /** Problèmes et matériel repérés dans la note, transmis au bureau. */
+  items: {
+    kind: 'problem' | 'material';
+    summary: string;
+    quantity: number | null;
+    unit: string | null;
+  }[];
+};
+
+/** Photo affichée en grand, avec son calque d'annotations. */
+export type PhotoDetail = PhotoSummary & {
+  uri: string | null;
+  annotations: Annotation[];
+};
+
 /** Photo traitée (fichier enregistré, empreinte, vignette), prête à être enregistrée. */
 export type RecordPhotoInput = {
   id: string;
@@ -124,6 +150,18 @@ export interface DataSource {
   answerQuestion(operationId: string, key: string, value: boolean | number): Promise<void>;
   /** Marque une preuve « Impossible », avec un motif de la liste. Le bureau la valide. */
   waiveSlot(slotId: string, reason: WaiverReason): Promise<void>;
+  /** Note dictée : enregistrée sur le téléphone, envoyée puis transcrite par le serveur. */
+  recordVoiceNote(input: {
+    id: string;
+    jobsiteId: string;
+    photoId: string | null;
+    localUri: string;
+    durationS: number;
+  }): Promise<void>;
+  listVoiceNotes(jobsiteId: string): Promise<VoiceNote[]>;
+  getPhoto(photoId: string): Promise<PhotoDetail | null>;
+  /** Calque d'annotations (la photo d'origine n'est jamais modifiée). */
+  saveAnnotations(photoId: string, annotations: Annotation[]): Promise<void>;
   /** « Garder quand même » après une alerte orange de l'IA : le bureau tranchera. */
   keepDespiteAi(slotId: string): Promise<void>;
   /** « Terminer le chantier » : statut « terminé par le poseur ». */

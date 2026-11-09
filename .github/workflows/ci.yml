@@ -63,7 +63,7 @@ jobs:
       - name: Tests pgTAP
         run: supabase test db
 
-      # Critères de S5 (hors ligne), S7 (empreinte contrôlée) et S10 (pastilles IA, analyseur factice).
+      # Critères de S5 (hors ligne), S7 (empreinte contrôlée), S10 (pastilles IA) et S11 (notes vocales), services IA factices.
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
@@ -81,4 +81,4 @@ jobs:
           export SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-$SECRET_KEY}"
           export REQUIRE_SUPABASE=1
           test -n "$SUPABASE_ANON_KEY" || { echo "Clé publique introuvable dans supabase status"; exit 1; }
-          pnpm --filter @preuvio/shared exec vitest run src/sync/supabase.integration.test.ts src/upload/supabase.integration.test.ts src/ai/supabase.integration.test.ts
+          pnpm --filter @preuvio/shared exec vitest run src/sync/supabase.integration.test.ts src/upload/supabase.integration.test.ts src/ai/supabase.integration.test.ts src/ai/voice.integration.test.ts

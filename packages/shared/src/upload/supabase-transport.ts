@@ -2,6 +2,7 @@
 // et contrôle par l'Edge Function verify-photo.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { UploadResult, UploadTransport, VerifyResult } from './photo-uploader';
+import type { VoiceTransport } from './voice-uploader';
 
 export const PHOTO_BUCKET = 'photos';
 
@@ -69,6 +70,34 @@ export function createSupabaseUploadTransport(
       }
     },
 
+    deleteLocal: (localUri) => files.remove(localUri),
+  };
+}
+
+export const VOICE_BUCKET = 'voice-notes';
+
+/** Envoi de l'audio d'une note (pas de contrôle d'empreinte : la transcription fait foi). */
+export function createSupabaseVoiceTransport(
+  client: SupabaseClient,
+  files: { read(localUri: string): Promise<Uint8Array>; remove(localUri: string): Promise<void> },
+): VoiceTransport {
+  return {
+    async upload(storagePath, localUri) {
+      let bytes: Uint8Array;
+      try {
+        bytes = await files.read(localUri);
+      } catch {
+        return 'rejected';
+      }
+      try {
+        const { error } = await client.storage
+          .from(VOICE_BUCKET)
+          .upload(storagePath, bytes, { contentType: 'audio/mp4', upsert: false });
+        return classifyUploadError(error as StorageErrorLike);
+      } catch {
+        return 'retry';
+      }
+    },
     deleteLocal: (localUri) => files.remove(localUri),
   };
 }

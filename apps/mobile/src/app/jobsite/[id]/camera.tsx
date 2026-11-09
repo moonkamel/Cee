@@ -29,6 +29,7 @@ import { positionForPhoto, useHeadingRef } from '@/lib/heading';
 import { haptics } from '@/lib/haptics';
 import { processPhotoFile } from '@/lib/photo-pipeline';
 import { checkPhotoQuality } from '@/lib/photo-quality';
+import { useVoiceRecorder } from '@/lib/voice';
 import type { QualityIssue } from '@preuvio/shared';
 import { useTheme } from '@/theme/theme';
 import { cameraColors as cam } from '@preuvio/ui-tokens';
@@ -54,6 +55,10 @@ export default function CameraScreen() {
   const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState(false);
   const recorded = useRef(new Map<string, Promise<void>>());
+  // Note dictée depuis la caméra : rattachée à la dernière photo prise, s'il y en a une.
+  const voice = useVoiceRecorder((note) => {
+    void data.recordVoiceNote({ ...note, jobsiteId: id, photoId: photos[0]?.id ?? null });
+  }, randomUUID);
   // Alerte du contrôle local (S9) : la photo est enregistrée, le poseur choisit.
   const [alert, setAlert] = useState<{
     photoId: string;
@@ -301,6 +306,37 @@ export default function CameraScreen() {
             toggleContrast,
             scheme === 'contrast',
           )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={voice.recording ? t('voice.recording') : t('voice.hold')}
+            accessibilityState={{ busy: voice.recording }}
+            delayLongPress={250}
+            onLongPress={() => {
+              void haptics.recordEdge();
+              void voice.start();
+            }}
+            onPressOut={() => {
+              if (!voice.recording) return;
+              void haptics.recordEdge();
+              void voice.stop();
+            }}
+            style={{
+              width: sizes.touchMin,
+              height: sizes.touchMin,
+              borderRadius: sizes.touchMin / 2,
+              borderWidth: 2,
+              borderColor: cam.ink,
+              backgroundColor: voice.recording ? colors.action : cam.scrim,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon
+              name="microphone"
+              color="on-action"
+              fixedColor={voice.recording ? undefined : cam.ink}
+            />
+          </Pressable>
           {roundButton(
             flashAuto ? 'flash-auto' : 'flash-off',
             flashAuto ? t('camera.flashAuto') : t('camera.flashOff'),
@@ -355,9 +391,17 @@ export default function CameraScreen() {
             justifyContent: 'space-between',
           }}
         >
-          <View
-            accessible
+          <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('camera.lastPhoto')}
+            disabled={!last}
+            onPress={() =>
+              last &&
+              router.push({
+                pathname: '/jobsite/[id]/photo/[photoId]',
+                params: { id, photoId: last.id },
+              })
+            }
             style={{ width: 64, height: 64 }}
           >
             {last?.thumbUri ? (
@@ -380,7 +424,7 @@ export default function CameraScreen() {
                 </AppText>
               </View>
             ) : null}
-          </View>
+          </Pressable>
           <ShutterButton onPress={() => void capture()} disabled={capturing || !device} />
           {roundButton('check', t('camera.done'), () => router.back())}
         </View>

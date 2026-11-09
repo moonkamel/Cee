@@ -1,10 +1,12 @@
-import type { WaiverReason } from '@preuvio/shared';
+import type { Annotation, WaiverReason } from '@preuvio/shared';
 import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 import { Stack } from 'expo-router';
 import * as Location from 'expo-location';
 import { AuthProvider, type AuthService } from '@/auth/auth';
 import { DataProvider } from '@/data/data-context';
 import type {
+  PhotoDetail,
+  VoiceNote,
   AppSyncStatus,
   CachedResult,
   DataSource,
@@ -25,11 +27,33 @@ import Me from '../app/(tabs)/me';
 import JobsiteScreen from '../app/jobsite/[id]/index';
 import SummaryScreen from '../app/jobsite/[id]/summary';
 import WaiveScreen from '../app/jobsite/[id]/waive';
+import PhotoScreen from '../app/jobsite/[id]/photo/[photoId]';
 import JobsiteNew from '../app/jobsite/new';
 import LoginCode from '../app/login/code';
 import LoginPhone from '../app/login/index';
 import Welcome from '../app/welcome';
 
+jest.mock('@/lib/voice', () => {
+  // Faux micro : appui long → enregistrement, relâcher → note de 7 s (expo-audio est natif).
+  const { useState } = jest.requireActual<typeof import('react')>('react');
+  return {
+    useVoiceRecorder: (
+      onRecorded: (n: { id: string; localUri: string; durationS: number }) => void,
+    ) => {
+      const [recording, setRecording] = useState(false);
+      return {
+        recording,
+        levels: [],
+        denied: false,
+        start: async () => setRecording(true),
+        stop: async () => {
+          setRecording(false);
+          onRecorded({ id: 'note-1', localUri: 'file:///voice/note-1.m4a', durationS: 7 });
+        },
+      };
+    },
+  };
+});
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(() => Promise.resolve()),
   notificationAsync: jest.fn(() => Promise.resolve()),
@@ -125,6 +149,12 @@ const data: jest.Mocked<DataSource> = {
   finishJobsite: jest.fn(async (_jobsiteId: string) => undefined),
   resolvePhotoCheck: jest.fn(async (_photoId: string, _keep: boolean) => undefined),
   keepDespiteAi: jest.fn(async (_slotId: string) => undefined),
+  recordVoiceNote: jest.fn(
+    async (_input: Parameters<DataSource['recordVoiceNote']>[0]) => undefined,
+  ),
+  listVoiceNotes: jest.fn(async (_jobsiteId: string): Promise<VoiceNote[]> => []),
+  getPhoto: jest.fn(async (_photoId: string): Promise<PhotoDetail | null> => null),
+  saveAnnotations: jest.fn(async (_photoId: string, _a: Annotation[]) => undefined),
   recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
   syncStatus: jest.fn(async () => syncStatus),
   syncNow: jest.fn(async () => undefined),
@@ -160,6 +190,7 @@ const routes = {
   'jobsite/[id]/summary': SummaryScreen,
   'jobsite/[id]/waive': WaiveScreen,
   'jobsite/[id]/camera': () => null,
+  'jobsite/[id]/photo/[photoId]': PhotoScreen,
 };
 
 function withPosition(position: { lat: number; lng: number } | null) {
@@ -622,5 +653,130 @@ describe('pré-contrôle IA (S10)', () => {
     expect(await screen.findByText('1 preuves sur 1')).toBeTruthy();
     expect(screen.getByText('1 photo(s) gardée(s), à trancher par le bureau')).toBeTruthy();
     expect(screen.queryByTestId('ai-alert')).toBeNull();
+  });
+});
+
+// --- S11 : notes vocales et annotations ----------------------------------------------------
+describe('notes vocales et annotations (S11)', () => {
+  beforeEach(() => {
+    signedInUser = 'u-poseur';
+    jobsites.data = [jobsite({ id: 'j1', address: 'Chantier A' })];
+  });
+  afterEach(() => {
+    data.listVoiceNotes.mockResolvedValue([]);
+    data.listPhotos.mockResolvedValue([]);
+    data.getPhoto.mockResolvedValue(null);
+  });
+
+  it('appui long sur le micro : la note est rangée sur le téléphone', async () => {
+    await renderRouter(routes, { initialUrl: '/jobsite/j1' });
+    const mic = await screen.findByRole('button', { name: 'Maintenez pour parler' });
+    await fireEvent(mic, 'longPress');
+    await fireEvent(
+      screen.getByRole('button', { name: 'Enregistrement… relâchez pour finir' }),
+      'pressOut',
+    );
+    await waitFor(() =>
+      expect(data.recordVoiceNote).toHaveBeenCalledWith({
+        id: 'note-1',
+        localUri: 'file:///voice/note-1.m4a',
+        durationS: 7,
+        jobsiteId: 'j1',
+        photoId: null,
+      }),
+    );
+    expect(await screen.findByText('Note enregistrée')).toBeTruthy();
+  });
+
+  it('liste les notes : en attente hors ligne, puis transcrites avec ce qui a été repéré', async () => {
+    data.listVoiceNotes.mockResolvedValue([
+      {
+        id: 'a',
+        jobsiteId: 'j1',
+        photoId: null,
+        durationS: 7,
+        createdAt: '',
+        status: 'pending',
+        text: null,
+        items: [],
+      },
+      {
+        id: 'b',
+        jobsiteId: 'j1',
+        photoId: null,
+        durationS: 12,
+        createdAt: '',
+        status: 'done',
+        text: 'Il manque un raccord, commander 2 coudes.',
+        items: [
+          { kind: 'problem', summary: 'Raccord manquant', quantity: null, unit: null },
+          { kind: 'material', summary: 'coudes', quantity: 2, unit: null },
+        ],
+      },
+    ]);
+    await renderRouter(routes, { initialUrl: '/jobsite/j1' });
+    expect(await screen.findByText('Transcription en attente')).toBeTruthy();
+    expect(screen.getByText('Il manque un raccord, commander 2 coudes.')).toBeTruthy();
+    expect(screen.getByText('Signalé au bureau : Raccord manquant')).toBeTruthy();
+    expect(screen.getByText('À commander : 2 coudes')).toBeTruthy();
+  });
+
+  it('dessine un rectangle et un texte sur le calque, puis enregistre', async () => {
+    data.getPhoto.mockResolvedValue({
+      id: 'p1',
+      proofSlotId: null,
+      thumbUri: 'file:///t.jpg',
+      takenAt: '2026-11-09T09:00:00Z',
+      outsideGeofence: false,
+      source: 'camera',
+      uri: 'file:///p1.jpg',
+      annotations: [],
+    });
+    await renderRouter(routes, { initialUrl: '/jobsite/j1/photo/p1' });
+    const canvas = await screen.findByTestId('photo-canvas');
+    await fireEvent(canvas, 'layout', { nativeEvent: { layout: { width: 400, height: 300 } } });
+    const touch = (x: number, y: number) => ({ nativeEvent: { locationX: x, locationY: y } });
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Rectangle' }));
+    await fireEvent(canvas, 'responderGrant', touch(40, 30));
+    await fireEvent(canvas, 'responderMove', touch(200, 150));
+    await fireEvent(canvas, 'responderRelease', touch(200, 150));
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Texte' }));
+    await fireEvent(canvas, 'responderGrant', touch(100, 60));
+    await fireEvent(canvas, 'responderRelease', touch(100, 60));
+    await fireEvent.changeText(screen.getByLabelText('Texte à afficher'), 'Fuite ici');
+    await fireEvent.press(screen.getByRole('button', { name: 'Ajouter le texte' }));
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Enregistrer' }));
+    expect(data.saveAnnotations).toHaveBeenCalledWith('p1', [
+      { type: 'rect', from: { x: 0.1, y: 0.1 }, to: { x: 0.5, y: 0.5 } },
+      { type: 'text', at: { x: 0.25, y: 0.2 }, text: 'Fuite ici' },
+    ]);
+  });
+
+  it('une note dictée depuis la photo lui est rattachée', async () => {
+    data.getPhoto.mockResolvedValue({
+      id: 'p1',
+      proofSlotId: null,
+      thumbUri: null,
+      takenAt: '',
+      outsideGeofence: false,
+      source: 'camera',
+      uri: null,
+      annotations: [],
+    });
+    await renderRouter(routes, { initialUrl: '/jobsite/j1/photo/p1' });
+    await fireEvent(
+      await screen.findByRole('button', { name: 'Maintenez pour parler' }),
+      'longPress',
+    );
+    await fireEvent(
+      screen.getByRole('button', { name: 'Enregistrement… relâchez pour finir' }),
+      'pressOut',
+    );
+    await waitFor(() =>
+      expect(data.recordVoiceNote).toHaveBeenCalledWith(expect.objectContaining({ photoId: 'p1' })),
+    );
   });
 });

@@ -19,6 +19,7 @@ import {
   type ExtractField,
 } from '../_shared/ai/verdict.ts';
 import { json } from '../_shared/http.ts';
+import { isServiceCall } from '../_shared/service.ts';
 
 const BATCH = 5;
 const VISIBILITY_S = 180;
@@ -209,20 +210,9 @@ async function handle(db: SupabaseClient, analyzer: PhotoAnalyzer, m: Message): 
   return done(decision.kind);
 }
 
-/** Comparaison en temps constant de la clé reçue. */
-function sameSecret(a: string, b: string): boolean {
-  const x = new TextEncoder().encode(a);
-  const y = new TextEncoder().encode(b);
-  let diff = x.length ^ y.length;
-  for (let i = 0; i < Math.max(x.length, y.length); i += 1) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
-  return diff === 0;
-}
-
 Deno.serve(async (req) => {
+  if (!isServiceCall(req)) return json(403, { error: 'Réservé au serveur' });
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  if (!sameSecret(req.headers.get('Authorization') ?? '', `Bearer ${serviceKey}`)) {
-    return json(403, { error: 'Réservé au serveur' });
-  }
   const analyzer = analyzerFromEnv();
   // Sans clé, rien ne se perd : les photos restent « analyse en attente ».
   if (!analyzer) return json(503, { error: 'ANTHROPIC_API_KEY absente' });

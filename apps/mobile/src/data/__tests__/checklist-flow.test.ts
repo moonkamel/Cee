@@ -241,3 +241,86 @@ describe('pré-contrôle IA : verdict reçu du serveur (S10)', () => {
     expect(server.rows('photos')[0]!.ai_kept_at).toEqual(expect.any(String));
   });
 });
+
+describe('notes vocales et annotations, avec le vrai moteur (S11)', () => {
+  it('critère S11 : dictée hors ligne, envoyée à la synchronisation, transcription affichée', async () => {
+    const { server, engine, source } = await setup();
+    const jobsiteId = await source.createJobsite({
+      address: { label: 'Bron', banId: null, lat: null, lng: null, pending: false },
+      workTypes: ['vmc'],
+      client: null,
+    });
+    await engine.sync({ force: true });
+    await engine.sync({ force: true });
+
+    server.state.online = false;
+    await source.recordVoiceNote({
+      id: 'n1',
+      jobsiteId,
+      photoId: null,
+      localUri: 'file:///voice/n1.m4a',
+      durationS: 9,
+    });
+    let [note] = await source.listVoiceNotes(jobsiteId);
+    expect(note).toMatchObject({ id: 'n1', status: 'pending', text: null, durationS: 9 });
+
+    // Retour du réseau : la fiche part, le serveur transcrit (Voxtral puis Claude).
+    server.state.online = true;
+    await engine.sync({ force: true });
+    await engine.sync({ force: true });
+    const serverNote = server.rows('voice_notes').find((n) => n.id === 'n1')!;
+    expect(serverNote).toMatchObject({ audio_path: `c1/${jobsiteId}/n1.m4a`, duration_s: 9 });
+    server.serverWrite('voice_notes', {
+      ...serverNote,
+      status: 'done',
+      transcript: 'il manque un raccord',
+      transcript_clean: 'Il manque un raccord.',
+    });
+    server.serverWrite('note_items', {
+      id: 'i1',
+      jobsite_id: jobsiteId,
+      voice_note_id: 'n1',
+      kind: 'problem',
+      summary: 'Raccord manquant',
+      quantity: null,
+      unit: null,
+    });
+    await engine.sync({ force: true });
+
+    [note] = await source.listVoiceNotes(jobsiteId);
+    expect(note).toMatchObject({
+      status: 'done',
+      text: 'Il manque un raccord.',
+      items: [{ kind: 'problem', summary: 'Raccord manquant' }],
+    });
+  });
+
+  it('annotations : calque enregistré sur la photo, l’original intact', async () => {
+    const { server, engine, source } = await setup();
+    const jobsiteId = await source.createJobsite({
+      address: { label: 'Bron', banId: null, lat: null, lng: null, pending: false },
+      workTypes: ['pac_air_eau'],
+      client: null,
+    });
+    const slot = (await source.listSlots(jobsiteId))[0]!;
+    await source.recordPhoto(photo(jobsiteId, slot.id, 1));
+    const arrow = { type: 'arrow' as const, from: { x: 0.1, y: 0.1 }, to: { x: 0.5, y: 0.4 } };
+    await source.saveAnnotations('photo-1', [arrow]);
+    expect(await source.getPhoto('photo-1')).toMatchObject({
+      annotations: [arrow],
+      uri: 'file:///p1.jpg',
+    });
+    await engine.sync({ force: true });
+    await engine.sync({ force: true });
+    expect(server.rows('photos')[0]).toMatchObject({
+      annotations: [arrow],
+      sha256: '1'.padStart(64, 'a'),
+    });
+    await expect(
+      source.saveAnnotations('photo-1', [
+        { type: 'rect', from: { x: 2, y: 0 }, to: { x: 0, y: 0 } },
+      ] as never),
+    ).rejects.toThrow();
+    expect(await source.getPhoto('inconnue')).toBeNull();
+  });
+});

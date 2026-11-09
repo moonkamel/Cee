@@ -6,6 +6,9 @@ export const DENO_COPY_FILES = [
   'analyzer.ts',
   'claude.ts',
   'fake.ts',
+  'transcriber.ts',
+  'mistral.ts',
+  'note.ts',
 ] as const;
 
 export function toDeno(source: string, file: string): string {

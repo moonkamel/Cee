@@ -406,6 +406,9 @@ AI_PROVIDER = "fake"
 [functions.analyze-photos]
 verify_jwt = false
 
+[functions.transcribe-notes]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

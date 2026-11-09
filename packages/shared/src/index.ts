@@ -10,3 +10,5 @@ export * from './slots';
 export * from './upload';
 export * from './checklists';
 export * from './quality/analyze';
+export * from './annotations/annotations';
+export * from './voice';
