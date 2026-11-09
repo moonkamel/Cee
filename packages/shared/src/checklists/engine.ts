@@ -156,6 +156,8 @@ export type SummarySlot = {
   applicable: boolean;
   status: ProofSlotStatus;
   waiverValidated: boolean;
+  /** Alerte orange de l'IA gardée par le poseur (« Garder quand même ») : le bureau tranche. */
+  aiKept?: boolean;
 };
 
 export type ChecklistSummary<T extends SummarySlot> = {
@@ -169,6 +171,8 @@ export type ChecklistSummary<T extends SummarySlot> = {
   optionalMissing: T[];
   /** Dispenses en attente de validation par le bureau. */
   waiversPending: T[];
+  /** Photos gardées malgré l'alerte de l'IA, à trancher par le bureau. */
+  keptPending: T[];
   complete: boolean;
 };
 
@@ -181,13 +185,15 @@ export function checklistSummary<T extends SummarySlot>(slots: readonly T[]): Ch
         PROOF_PHASES.indexOf(a.phase) - PROOF_PHASES.indexOf(b.phase) || a.position - b.position,
     );
   const required = applicable.filter((s) => s.required);
-  const missing = required.filter((s) => slotNeedsPhoto(s));
+  const kept = (s: T) => s.status === 'to_retake' && s.aiKept === true;
+  const missing = required.filter((s) => slotNeedsPhoto(s) && !kept(s));
   return {
     total: required.length,
     done: required.length - missing.length,
     missing,
-    optionalMissing: applicable.filter((s) => !s.required && slotNeedsPhoto(s)),
+    optionalMissing: applicable.filter((s) => !s.required && slotNeedsPhoto(s) && !kept(s)),
     waiversPending: applicable.filter((s) => s.status === 'waived' && !s.waiverValidated),
+    keptPending: applicable.filter(kept),
     complete: missing.length === 0,
   };
 }

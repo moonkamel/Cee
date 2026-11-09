@@ -9,3 +9,4 @@ dist/
 !.env.example
 !apps/mobile/.env
 supabase/functions/deno.lock
+fixtures/ai-eval/report.json

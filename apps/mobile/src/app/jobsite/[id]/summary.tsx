@@ -85,6 +85,9 @@ export default function SummaryScreen() {
           {t('summary.optional', { count: summary.optionalMissing.length })}
         </AppText>
       ) : null}
+      {summary.keptPending.length > 0 ? (
+        <AppText color="warn">{t('summary.kept', { count: summary.keptPending.length })}</AppText>
+      ) : null}
       {summary.waiversPending.length > 0 ? (
         <AppText color="warn">
           {t('summary.waivers', { count: summary.waiversPending.length })}

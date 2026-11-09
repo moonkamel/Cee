@@ -217,6 +217,25 @@ describe('écran de fin de chantier', () => {
   });
 });
 
+describe('alerte IA gardée par le poseur', () => {
+  it('ne compte plus comme manque, part au bureau', () => {
+    const base = {
+      phase: 'apres' as const,
+      position: 0,
+      required: true,
+      applicable: true,
+      waiverValidated: false,
+    };
+    const s = checklistSummary([
+      { ...base, id: 'kept', status: 'to_retake', aiKept: true },
+      { ...base, id: 'retake', status: 'to_retake' },
+    ]);
+    expect(s.missing.map((x) => x.id)).toEqual(['retake']);
+    expect(s.keptPending.map((x) => x.id)).toEqual(['kept']);
+    expect(s).toMatchObject({ total: 2, done: 1, complete: false });
+  });
+});
+
 describe('choix du modèle et génération', () => {
   const row = (over: Record<string, unknown>) => ({
     id: 'g1',

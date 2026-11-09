@@ -93,3 +93,54 @@ begin
   select string_to_array(name, '/') into _parts;
   return _parts[1:array_length(_parts, 1) - 1];
 end $$;
+
+-- pgmq, pg_cron, pg_net et vault (S10) : imitations minimales, sans extension.
+-- Les lignes « create extension if not exists pgmq|pg_cron|pg_net » des migrations sont
+-- retirées par run-tests.sh ; le vrai comportement est testé en CI (supabase test db).
+create schema pgmq;
+create type pgmq.message_record as (msg_id bigint, read_ct integer, enqueued_at timestamptz, vt timestamptz, message jsonb);
+create function pgmq.create(queue_name text) returns void language plpgsql as $$
+begin
+  execute format('create table pgmq.%I (msg_id bigserial primary key, read_ct integer not null default 0,
+    enqueued_at timestamptz not null default now(), vt timestamptz not null default now(), message jsonb)', 'q_' || queue_name);
+  execute format('create table pgmq.%I (like pgmq.%I)', 'a_' || queue_name, 'q_' || queue_name);
+end $$;
+create function pgmq.send(queue_name text, msg jsonb) returns setof bigint language plpgsql as $$
+begin
+  return query execute format('insert into pgmq.%I (message) values ($1) returning msg_id', 'q_' || queue_name) using msg;
+end $$;
+create function pgmq.read(queue_name text, vt integer, qty integer) returns setof pgmq.message_record language plpgsql as $$
+begin
+  return query execute format(
+    'update pgmq.%1$I set read_ct = read_ct + 1, vt = now() + make_interval(secs => $1)
+     where msg_id in (select msg_id from pgmq.%1$I where vt <= now() order by msg_id limit $2 for update skip locked)
+     returning msg_id, read_ct, enqueued_at, vt, message', 'q_' || queue_name) using vt, qty;
+end $$;
+create function pgmq.delete(queue_name text, msg_id bigint) returns boolean language plpgsql as $$
+begin
+  execute format('delete from pgmq.%I where msg_id = $1', 'q_' || queue_name) using msg_id;
+  return found;
+end $$;
+create function pgmq.archive(queue_name text, msg_id bigint) returns boolean language plpgsql as $$
+begin
+  execute format('with m as (delete from pgmq.%I where msg_id = $1 returning *) insert into pgmq.%I select * from m',
+    'q_' || queue_name, 'a_' || queue_name) using msg_id;
+  return found;
+end $$;
+create function pgmq.set_vt(queue_name text, msg_id bigint, vt integer) returns setof pgmq.message_record language plpgsql as $$
+begin
+  return query execute format('update pgmq.%I set vt = now() + make_interval(secs => $2) where msg_id = $1
+    returning msg_id, read_ct, enqueued_at, vt, message', 'q_' || queue_name) using msg_id, vt;
+end $$;
+
+create schema cron;
+create table cron.job (jobname text primary key, schedule text, command text);
+create function cron.schedule(job_name text, schedule text, command text) returns bigint language sql as $$
+  insert into cron.job values (job_name, schedule, command) on conflict (jobname) do update set command = excluded.command;
+  select 1::bigint;
+$$;
+create schema net;
+create function net.http_post(url text, headers jsonb default '{}', body jsonb default '{}') returns bigint
+  language sql as $$ select 1::bigint $$;
+create schema vault;
+create view vault.decrypted_secrets as select null::text as name, null::text as decrypted_secret where false;

@@ -16,7 +16,7 @@ psql -X -q -d "$DB" -c "alter database $DB set search_path = \"\$user\", public,
 "${PSQL[@]}" -f "$ROOT/scripts/db-local/pgtap-lite.sql" >/dev/null
 for f in "$ROOT"/supabase/migrations/*.sql; do
   echo "migration  $(basename "$f")"
-  "${PSQL[@]}" -f "$f" >/dev/null
+  sed -E '/create extension if not exists (pgmq|pg_cron|pg_net);/d' "$f" | "${PSQL[@]}" >/dev/null
 done
 echo "seed       seed.sql"
 "${PSQL[@]}" -f "$ROOT/supabase/seed.sql" >/dev/null

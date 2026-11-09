@@ -65,5 +65,6 @@ chef d'équipe `+33 6 39 98 00 02`, poseur `+33 6 39 98 00 03`.
 | S7      | Envoi des photos                   | Terminée |
 | S8      | Moteur de checklists               | Terminée |
 | S9      | Contrôle local des photos          | Terminée |
+| S10     | Pré-contrôle IA                    | Terminée |
 
 Le plan complet (19 sessions, 5 phases) est dans la section 18 du cahier des charges.

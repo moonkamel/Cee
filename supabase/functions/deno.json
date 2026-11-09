@@ -2,5 +2,10 @@
   "nodeModulesDir": "none",
   "compilerOptions": {
     "strict": true
+  },
+  "imports": {
+    "zod": "npm:zod@4.6.7",
+    "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@1.6.0",
+    "@anthropic-ai/sdk/": "npm:/@anthropic-ai/sdk@1.6.0/"
   }
 }

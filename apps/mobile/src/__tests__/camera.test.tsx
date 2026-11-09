@@ -74,6 +74,8 @@ const slot = (
   applicable: true,
   waiverReason: null,
   waiverValidated: false,
+  aiMessage: null,
+  aiKept: false,
 });
 
 const okCheck: LocalCheck = {
@@ -101,6 +103,7 @@ const data: jest.Mocked<DataSource> = {
   waiveSlot: jest.fn(async (_slotId: string, _reason: WaiverReason) => undefined),
   finishJobsite: jest.fn(async (_jobsiteId: string) => undefined),
   resolvePhotoCheck: jest.fn(async (_photoId: string, _keep: boolean) => undefined),
+  keepDespiteAi: jest.fn(async (_slotId: string) => undefined),
   recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
   syncStatus: jest.fn(async () => ({
     pending: 0,

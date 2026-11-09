@@ -397,8 +397,14 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
-# [edge_runtime.secrets]
-# secret_key = "env(SECRET_VALUE)"
+# Local et CI uniquement : pré-contrôle IA factice (aucun appel externe, aucune clé).
+# En production, AI_PROVIDER est absent et ANTHROPIC_API_KEY est un secret du projet.
+[edge_runtime.secrets]
+AI_PROVIDER = "fake"
+
+# Appelée par pg_cron avec la clé de service, vérifiée par la fonction elle-même.
+[functions.analyze-photos]
+verify_jwt = false
 
 [analytics]
 enabled = true

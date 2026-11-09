@@ -204,3 +204,40 @@ describe('contrôle local : Reprendre ou Garder (S9)', () => {
     expect(row.deleted_at).toBeUndefined();
   });
 });
+
+describe('pré-contrôle IA : verdict reçu du serveur (S10)', () => {
+  it('message orange sur la preuve, puis « Garder quand même » part au serveur', async () => {
+    const { server, engine, source } = await setup();
+    const jobsiteId = await source.createJobsite({
+      address: { label: 'Bron', banId: null, lat: null, lng: null, pending: false },
+      workTypes: ['pac_air_eau'],
+      client: null,
+    });
+    const slot = (await source.listSlots(jobsiteId))[0]!;
+    await source.recordPhoto(photo(jobsiteId, slot.id, 1));
+    await engine.sync({ force: true });
+    await engine.sync({ force: true });
+
+    // Le serveur analyse la photo et passe la preuve en orange.
+    const serverPhoto = server.rows('photos')[0]!;
+    server.serverWrite('photos', {
+      ...serverPhoto,
+      ai_status: 'done',
+      ai_result: { decision: { kind: 'retake', message: 'Photo floue, reprenez' } },
+    });
+    const serverSlot = server.rows('proof_slots').find((s) => s.id === slot.id)!;
+    server.serverWrite('proof_slots', { ...serverSlot, status: 'to_retake' });
+    await engine.sync({ force: true });
+
+    expect((await source.listSlots(jobsiteId))[0]).toMatchObject({
+      status: 'to_retake',
+      aiMessage: 'Photo floue, reprenez',
+      aiKept: false,
+    });
+    await source.keepDespiteAi(slot.id);
+    expect((await source.listSlots(jobsiteId))[0]).toMatchObject({ aiKept: true });
+    await engine.sync({ force: true });
+    await engine.sync({ force: true });
+    expect(server.rows('photos')[0]!.ai_kept_at).toEqual(expect.any(String));
+  });
+});

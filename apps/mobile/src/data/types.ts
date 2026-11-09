@@ -40,6 +40,10 @@ export type ProofSlot = {
   applicable: boolean;
   waiverReason: string | null;
   waiverValidated: boolean;
+  /** Message de l'IA (alerte orange), sur la dernière photo de la preuve. */
+  aiMessage: string | null;
+  /** Photo gardée malgré l'alerte (« Garder quand même ») : le bureau tranche. */
+  aiKept: boolean;
 };
 
 /** Question rapide d'une opération, avec sa réponse actuelle (ou celle par défaut). */
@@ -120,6 +124,8 @@ export interface DataSource {
   answerQuestion(operationId: string, key: string, value: boolean | number): Promise<void>;
   /** Marque une preuve « Impossible », avec un motif de la liste. Le bureau la valide. */
   waiveSlot(slotId: string, reason: WaiverReason): Promise<void>;
+  /** « Garder quand même » après une alerte orange de l'IA : le bureau tranchera. */
+  keepDespiteAi(slotId: string): Promise<void>;
   /** « Terminer le chantier » : statut « terminé par le poseur ». */
   finishJobsite(jobsiteId: string): Promise<void>;
   listPhotos(jobsiteId: string): Promise<PhotoSummary[]>;

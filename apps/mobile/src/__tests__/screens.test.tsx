@@ -124,6 +124,7 @@ const data: jest.Mocked<DataSource> = {
   waiveSlot: jest.fn(async (_slotId: string, _reason: WaiverReason) => undefined),
   finishJobsite: jest.fn(async (_jobsiteId: string) => undefined),
   resolvePhotoCheck: jest.fn(async (_photoId: string, _keep: boolean) => undefined),
+  keepDespiteAi: jest.fn(async (_slotId: string) => undefined),
   recordPhoto: jest.fn(async (_input: RecordPhotoInput) => undefined),
   syncStatus: jest.fn(async () => syncStatus),
   syncNow: jest.fn(async () => undefined),
@@ -464,6 +465,8 @@ const proof = (id: string, over: Partial<ProofSlot> = {}): ProofSlot => ({
   applicable: true,
   waiverReason: null,
   waiverValidated: false,
+  aiMessage: null,
+  aiKept: false,
   ...over,
 });
 
@@ -566,5 +569,58 @@ describe('checklist d’un chantier (S8)', () => {
     expect(await screen.findByText('Preuve b')).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'Équipement inaccessible' }));
     expect(data.waiveSlot).toHaveBeenCalledWith('b', 'inaccessible');
+  });
+});
+
+// --- S10 : pastilles du pré-contrôle IA ------------------------------------------------------
+describe('pré-contrôle IA (S10)', () => {
+  beforeEach(() => {
+    signedInUser = 'u-poseur';
+    jobsites.data = [jobsite({ id: 'j1', address: 'Chantier A' })];
+  });
+  afterEach(() => data.listSlots.mockResolvedValue([]));
+
+  it('alerte orange : le message de l’IA, puis « Reprendre » ouvre la caméra', async () => {
+    data.listSlots.mockResolvedValue([
+      proof('p', {
+        instruction: "Plaque de l'unité extérieure",
+        status: 'to_retake',
+        aiMessage: 'Plaque illisible, rapprochez-vous',
+      }),
+      proof('u', { instruction: 'Unité extérieure posée', status: 'compliant' }),
+    ]);
+    const router = await renderRouter(routes, { initialUrl: '/jobsite/j1' });
+    expect(await screen.findByText('Plaque illisible, rapprochez-vous')).toBeTruthy();
+    // Pastilles : orange « À reprendre », vert « Validée ».
+    expect(
+      screen.getByLabelText("Photographier : Plaque de l'unité extérieure. À reprendre"),
+    ).toBeTruthy();
+    expect(screen.getByLabelText('Photographier : Unité extérieure posée. Validée')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Reprendre' }));
+    await waitFor(() => expect(router.getPathname()).toBe('/jobsite/j1/camera'));
+    expect(router.getSearchParams()).toMatchObject({ slot: 'p' });
+  });
+
+  it('« Garder quand même » : le bureau tranchera', async () => {
+    data.listSlots.mockResolvedValue([
+      proof('p', { status: 'to_retake', aiMessage: 'Plaque illisible, rapprochez-vous' }),
+    ]);
+    await renderRouter(routes, { initialUrl: '/jobsite/j1' });
+    await fireEvent.press(await screen.findByRole('button', { name: 'Garder quand même' }));
+    expect(data.keepDespiteAi).toHaveBeenCalledWith('p');
+  });
+
+  it('photo gardée : plus d’alerte, et elle ne compte pas comme manque', async () => {
+    data.listSlots.mockResolvedValue([
+      proof('p', {
+        status: 'to_retake',
+        aiMessage: 'Plaque illisible, rapprochez-vous',
+        aiKept: true,
+      }),
+    ]);
+    await renderRouter(routes, { initialUrl: '/jobsite/j1/summary' });
+    expect(await screen.findByText('1 preuves sur 1')).toBeTruthy();
+    expect(screen.getByText('1 photo(s) gardée(s), à trancher par le bureau')).toBeTruthy();
+    expect(screen.queryByTestId('ai-alert')).toBeNull();
   });
 });

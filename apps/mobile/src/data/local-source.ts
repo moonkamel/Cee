@@ -79,7 +79,30 @@ export function toProofSlot(s: Row): ProofSlot {
     applicable: s.applicable !== false,
     waiverReason: str(s.waiver_reason),
     waiverValidated: Boolean(s.waiver_validated_at),
+    aiMessage: null,
+    aiKept: false,
   };
+}
+
+/** Dernière photo (non retirée) de chaque preuve, pour l'alerte de l'IA. */
+function latestPhotoBySlot(photos: Row[]): Map<string, Row> {
+  const latest = new Map<string, Row>();
+  for (const p of photos) {
+    const slot = str(p.proof_slot_id);
+    if (!slot || p.deleted_at) continue;
+    const current = latest.get(slot);
+    if (!current || String(p.device_taken_at) > String(current.device_taken_at))
+      latest.set(slot, p);
+  }
+  return latest;
+}
+
+/** Alerte orange de l'IA (S10) : message à montrer au poseur, et s'il l'a gardée. */
+export function withAiAlert(slot: ProofSlot, photo: Row | undefined): ProofSlot {
+  const decision = (photo?.ai_result as { decision?: { kind?: string; message?: string } } | null)
+    ?.decision;
+  if (slot.status !== 'to_retake' || decision?.kind !== 'retake') return slot;
+  return { ...slot, aiMessage: decision.message ?? null, aiKept: Boolean(photo?.ai_kept_at) };
 }
 
 /** Modèle figé d'une opération, ou null s'il est illisible (ancienne démonstration). */
@@ -213,9 +236,22 @@ export function createLocalSource({
     },
 
     async listSlots(jobsiteId) {
+      const latest = latestPhotoBySlot(
+        (await engine.rows('photos')).filter((p) => p.jobsite_id === jobsiteId),
+      );
       return (await engine.rows('proof_slots'))
         .filter((s) => s.jobsite_id === jobsiteId && s.applicable !== false)
-        .map(toProofSlot);
+        .map((s) => withAiAlert(toProofSlot(s), latest.get(String(s.id))));
+    },
+
+    async keepDespiteAi(slotId) {
+      const photo = latestPhotoBySlot(await engine.rows('photos')).get(slotId);
+      if (!photo || photo.ai_kept_at) return;
+      await engine.write('photos', 'update', {
+        id: photo.id,
+        ai_kept_at: new Date().toISOString(),
+      });
+      syncThenUpload();
     },
 
     async listOperations(jobsiteId) {

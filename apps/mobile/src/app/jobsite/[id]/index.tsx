@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { describeWork } from '@/components/JobsiteCard';
 import { Screen } from '@/components/Screen';
 import {
+  AiAlertCard,
   AppText,
   BigButton,
   ChecklistRow,
@@ -125,6 +126,18 @@ export default function JobsiteScreen() {
           )}
         </View>
       ) : null}
+
+      {(slots ?? [])
+        .filter((s) => s.aiMessage && !s.aiKept)
+        .map((s) => (
+          <AiAlertCard
+            key={`ai-${s.id}`}
+            instruction={s.instruction}
+            message={s.aiMessage!}
+            onRetake={() => openCamera(s.id)}
+            onKeep={() => void data.keepDespiteAi(s.id)}
+          />
+        ))}
 
       {slots && slots.length > 0 ? (
         <View style={{ gap: spacing.sm }}>

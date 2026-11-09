@@ -11,3 +11,4 @@ export { Toast } from './Toast';
 export { VoiceButton } from './VoiceButton';
 export { ToggleRow } from './ToggleRow';
 export { QuestionCard } from './QuestionCard';
+export { AiAlertCard } from './AiAlertCard';
