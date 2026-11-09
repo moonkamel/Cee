@@ -4,6 +4,7 @@
 Appli de preuve de pose pour entreprises RGE.
 Spécification complète : docs/cahier-des-charges.md.
 En cas de doute, la spécification fait foi : pose la question plutôt que d'inventer.
+Chantier d'exemple de référence (données de démo, tests à la main) : docs/chantier-exemple.md.
 
 ## Utilisateur principal
 Poseur sur chantier : gants, plein soleil, réseau faible, peu à l'aise avec le numérique.
