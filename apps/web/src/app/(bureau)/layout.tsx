@@ -31,6 +31,7 @@ export default function OfficeLayout({ children }: LayoutProps<'/'>) {
           </Link>
           <Link href="/">Tableau de bord</Link>
           <Link href="/chantiers">Chantiers</Link>
+          <Link href="/exports">Exports</Link>
           <Link href="/equipe">Équipe</Link>
           <span className="flex-1" />
           <Suspense fallback={null}>

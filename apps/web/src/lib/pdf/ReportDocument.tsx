@@ -36,6 +36,9 @@ export type PdfNote = { n: number; recordedAt: string; text: string };
 
 export type PdfSentence = { text: string; photos: number[]; notes: number[] };
 
+/** Ligne de la liste des preuves (synthèse d'un dossier d'export). */
+export type PdfProof = { label: string; status: string; ok: boolean; photos: number[] };
+
 export type ReportPdfData = {
   title: string;
   version: number;
@@ -63,6 +66,8 @@ export type ReportPdfData = {
   missing: string[] | null;
   /** Mention du PV de réception (fin de chantier). */
   pv: string | null;
+  /** Liste des preuves avec renvoi aux vignettes (synthèse d'export) ; absente d'un rapport. */
+  proofs?: PdfProof[];
   photos: PdfPhoto[];
   notes: PdfNote[];
   verifyUrl: string;
@@ -231,6 +236,23 @@ export function ReportDocument({ data }: { data: ReportPdfData }) {
           </View>
         ) : null}
 
+        {data.proofs ? (
+          <View>
+            <Text style={s.h2}>Preuves</Text>
+            {data.proofs.map((p, i) => (
+              <View key={i} style={s.row} wrap={false}>
+                <Text style={{ flex: 1 }}>{p.label}</Text>
+                <Text style={{ width: 110, color: p.ok ? ink.ok : ink.ko }}>{p.status}</Text>
+                <Text style={[s.refs, { width: 80 }]}>
+                  {p.photos.length
+                    ? `photo${p.photos.length > 1 ? 's' : ''} ${p.photos.join(', ')}`
+                    : ''}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         {data.missing ? (
           <View wrap={false}>
             <Text style={s.h2}>Preuves obligatoires manquantes</Text>
@@ -253,16 +275,18 @@ export function ReportDocument({ data }: { data: ReportPdfData }) {
           </View>
         ) : null}
 
-        <View style={s.verify} wrap={false}>
-          <Image style={s.qr} src={data.qrDataUrl} />
-          <View style={s.verifyText}>
-            <Text style={{ fontWeight: 700 }}>Vérifier ce document</Text>
-            <Text style={s.muted}>
-              Scannez le code ou ouvrez {data.verifyUrl} : la page indique l’empreinte du document
-              d’origine et permet de comparer ce fichier.
-            </Text>
+        {data.qrDataUrl ? (
+          <View style={s.verify} wrap={false}>
+            <Image style={s.qr} src={data.qrDataUrl} />
+            <View style={s.verifyText}>
+              <Text style={{ fontWeight: 700 }}>Vérifier ce document</Text>
+              <Text style={s.muted}>
+                Scannez le code ou ouvrez {data.verifyUrl} : la page indique l’empreinte du document
+                d’origine et permet de comparer ce fichier.
+              </Text>
+            </View>
           </View>
-        </View>
+        ) : null}
         <Footer data={data} />
       </Page>
 

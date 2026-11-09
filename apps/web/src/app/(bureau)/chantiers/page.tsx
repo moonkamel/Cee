@@ -23,7 +23,10 @@ async function List({ searchParams }: { searchParams: PageProps<'/chantiers'>['s
   );
   return (
     <>
-      <h1 className="text-[32px] font-bold">{filter ? TITLES[filter] : 'Chantiers'}</h1>
+      <div className="flex flex-wrap items-center gap-4">
+        <h1 className="text-[32px] font-bold">{filter ? TITLES[filter] : 'Chantiers'}</h1>
+        <Link href="/chantiers/import">Importer un fichier CSV</Link>
+      </div>
       {views.length === 0 ? <p className="text-text-muted">Aucun chantier.</p> : null}
       <ul className="flex flex-col gap-3">
         {views.map((v) => (

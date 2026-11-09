@@ -1,4 +1,6 @@
 import {
+  DOCUMENT_LABELS,
+  type DocumentKind,
   formatParis,
   latestVersions,
   permissions,
@@ -9,12 +11,15 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { markItemDone } from '@/app/actions';
+import { removeDocument } from '@/app/exports-actions';
 import { AnnotatedPhoto } from '@/components/AnnotatedPhoto';
+import { DocumentForm } from '@/components/ExportForms';
 import { RequestReportForm } from '@/components/ReportForms';
 import { StatePill } from '@/components/StatePill';
 import { jobsiteView, latestPhoto } from '@/lib/dashboard';
 import { currentUser } from '@/lib/dal';
 import { loadJobsite, signedPhotoUrls } from '@/lib/queries';
+import { loadJobsiteDocuments } from '@/lib/exports/queries';
 import { loadJobsiteReports } from '@/lib/reports';
 import { localToday } from '@/lib/today';
 
@@ -35,10 +40,11 @@ const TONE_CLASS = {
 
 async function Jobsite({ params }: { params: PageProps<'/chantiers/[id]'>['params'] }) {
   const { id } = await params;
-  const [user, { jobsite, notes, items }, reports] = await Promise.all([
+  const [user, { jobsite, notes, items }, reports, documents] = await Promise.all([
     currentUser(),
     loadJobsite(id),
     loadJobsiteReports(id),
+    loadJobsiteDocuments(id),
   ]);
   if (!jobsite) notFound();
   const view = jobsiteView(jobsite, localToday());
@@ -101,6 +107,36 @@ async function Jobsite({ params }: { params: PageProps<'/chantiers/[id]'>['param
           </div>
         ) : null}
       </section>
+
+      {can.export ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-2xl font-bold">Pièces administratives</h2>
+          {documents.length === 0 ? (
+            <p className="text-text-muted">Aucune pièce : devis signé, facture, attestations…</p>
+          ) : null}
+          <ul className="flex flex-col gap-2">
+            {documents.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center gap-3">
+                <span className="font-bold">
+                  {DOCUMENT_LABELS[d.kind as DocumentKind] ?? d.kind}
+                </span>
+                <span>{d.file_name}</span>
+                <span className="text-base text-text-muted">
+                  {d.document_date
+                    ? `du ${formatParis(`${d.document_date}T12:00:00Z`, false)}`
+                    : 'sans date'}
+                </span>
+                <form action={removeDocument}>
+                  <input type="hidden" name="documentId" value={d.id} />
+                  <input type="hidden" name="jobsiteId" value={jobsite.id} />
+                  <button className="min-h-10 rounded-lg border border-border px-3">Retirer</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+          <DocumentForm jobsiteId={jobsite.id} />
+        </section>
+      ) : null}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-2xl font-bold">Fil photo</h2>
