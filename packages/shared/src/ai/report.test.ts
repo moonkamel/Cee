@@ -38,7 +38,7 @@ const source: ReportSource = {
       phase: 'avant',
       slotLabel: 'Façade du logement, numéro visible',
       caption: 'Façade côté rue',
-      aiStatus: 'warn',
+      aiStatus: 'retake',
       extracted: null,
       aiReasons: ['numéro peu lisible'],
       outsideGeofence: true,

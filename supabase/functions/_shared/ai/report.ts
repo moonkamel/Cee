@@ -290,7 +290,7 @@ export function createFakeReportWriter(): ReportWriter {
         .map((p) => ({ text: `${p.slotLabel} : photo prise.`, refs: [byId.get(p.id)!] }));
       const attention = [
         ...source.photos
-          .filter((p) => p.aiStatus === 'warn' || p.aiStatus === 'fail' || p.outsideGeofence)
+          .filter((p) => p.aiStatus === 'retake' || p.aiStatus === 'review' || p.outsideGeofence)
           .map((p) => ({ text: 'Photo à vérifier par le bureau.', refs: [byId.get(p.id)!] })),
         ...source.notes.map((n) => ({ text: n.text, refs: [byId.get(n.id)!] })),
       ];
