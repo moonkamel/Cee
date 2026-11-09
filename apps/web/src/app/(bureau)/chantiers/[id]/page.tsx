@@ -1,13 +1,21 @@
-import { permissions, proofTone } from '@preuvio/shared';
+import {
+  formatParis,
+  latestVersions,
+  permissions,
+  proofTone,
+  REPORT_TITLES,
+} from '@preuvio/shared';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { markItemDone } from '@/app/actions';
 import { AnnotatedPhoto } from '@/components/AnnotatedPhoto';
+import { RequestReportForm } from '@/components/ReportForms';
 import { StatePill } from '@/components/StatePill';
 import { jobsiteView, latestPhoto } from '@/lib/dashboard';
 import { currentUser } from '@/lib/dal';
 import { loadJobsite, signedPhotoUrls } from '@/lib/queries';
+import { loadJobsiteReports } from '@/lib/reports';
 import { localToday } from '@/lib/today';
 
 const TONE_WORD = {
@@ -27,7 +35,11 @@ const TONE_CLASS = {
 
 async function Jobsite({ params }: { params: PageProps<'/chantiers/[id]'>['params'] }) {
   const { id } = await params;
-  const [user, { jobsite, notes, items }] = await Promise.all([currentUser(), loadJobsite(id)]);
+  const [user, { jobsite, notes, items }, reports] = await Promise.all([
+    currentUser(),
+    loadJobsite(id),
+    loadJobsiteReports(id),
+  ]);
   if (!jobsite) notFound();
   const view = jobsiteView(jobsite, localToday());
   const slots = jobsite.proof_slots.filter((s) => s.applicable);
@@ -51,6 +63,44 @@ async function Jobsite({ params }: { params: PageProps<'/chantiers/[id]'>['param
           </span>
         </div>
       </div>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-2xl font-bold">Rapports</h2>
+        {reports.length === 0 ? (
+          <p className="text-text-muted">
+            Aucun rapport. Celui de fin de chantier est rédigé quand le poseur termine.
+          </p>
+        ) : null}
+        <ul className="flex flex-col gap-2">
+          {latestVersions(reports).map((r) => (
+            <li key={r.series_id}>
+              <Link href={`/rapports/${r.id}`} className="font-bold">
+                {REPORT_TITLES[r.kind]}
+                {r.period ? ` du ${formatParis(`${r.period}T12:00:00Z`, false)}` : ''}
+              </Link>{' '}
+              <span className="text-base text-text-muted">
+                · version {r.version} · {formatParis(r.created_at)}
+                {r.pdf_path ? ' · PDF émis' : ' · à relire'}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {can.decide ? (
+          <div className="flex flex-col gap-3">
+            <RequestReportForm
+              jobsiteId={jobsite.id}
+              kind="completion"
+              label="Rédiger le rapport de fin de chantier"
+            />
+            <RequestReportForm
+              jobsiteId={jobsite.id}
+              kind="dispute"
+              formId="dispute-form"
+              label="Créer un dossier de litige avec les photos cochées"
+            />
+          </div>
+        ) : null}
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-2xl font-bold">Fil photo</h2>
@@ -80,6 +130,18 @@ async function Jobsite({ params }: { params: PageProps<'/chantiers/[id]'>['param
                   <span className="text-base text-text-muted">
                     IA : {photo.ai_result.decision.message}
                   </span>
+                ) : null}
+                {photo && can.decide ? (
+                  <label className="flex min-h-10 items-center gap-2 text-base">
+                    <input
+                      type="checkbox"
+                      name="photoId"
+                      value={photo.id}
+                      form="dispute-form"
+                      className="h-6 w-6"
+                    />
+                    Joindre au dossier de litige
+                  </label>
                 ) : null}
                 {slot.status === 'to_retake' && can.decide ? (
                   <Link

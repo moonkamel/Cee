@@ -14,3 +14,4 @@ export * from './annotations/annotations';
 export * from './voice';
 export * from './office';
 export * from './notify/push';
+export * from './reports';

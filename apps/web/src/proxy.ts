@@ -18,7 +18,9 @@ export async function proxy(request: NextRequest) {
   });
   const { data } = await supabase.auth.getClaims();
   const isLogin = request.nextUrl.pathname.startsWith('/connexion');
-  if (!data?.claims && !isLogin) {
+  // Vérification d'un rapport (QR code) : publique, pour le client, l'assureur ou l'expert.
+  const isPublic = request.nextUrl.pathname.startsWith('/verifier/');
+  if (!data?.claims && !isLogin && !isPublic) {
     const login = request.nextUrl.clone();
     login.pathname = '/connexion';
     login.search = '';

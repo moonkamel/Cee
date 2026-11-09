@@ -2,7 +2,13 @@
 
 import {
   applyDecision,
+  applyEdits,
+  contentChanged,
   normalizeFrenchPhone,
+  parseContent,
+  permissions,
+  REPORT_SECTIONS,
+  type ReportEdits,
   retakeMessage,
   ROLES,
   type Role,
@@ -10,6 +16,7 @@ import {
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/dal';
+import { loadReport } from '@/lib/reports';
 import { supabaseServer } from '@/lib/supabase/server';
 
 export type FormState = { error?: string; ok?: boolean; phone?: string } | null;
@@ -130,4 +137,59 @@ export async function setActive(form: FormData) {
     .update({ active: form.get('active') === 'true' })
     .eq('id', String(form.get('profileId') ?? ''));
   revalidatePath('/equipe');
+}
+
+// --- Rapports (section 9) ------------------------------------------------------------------
+/** Fin de chantier à rédiger (de nouveau) ou dossier de litige sur les photos cochées. */
+export async function requestReport(_: FormState, form: FormData): Promise<FormState> {
+  const user = await currentUser();
+  if (!permissions(user.role).decide)
+    return { error: 'Réservé au chef, au bureau et au dirigeant' };
+  const jobsiteId = String(form.get('jobsiteId') ?? '');
+  const kind = String(form.get('kind') ?? '');
+  const photoIds = form.getAll('photoId').map(String).filter(Boolean);
+  if (kind === 'dispute' && photoIds.length === 0) return { error: 'Cochez au moins une photo' };
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc('request_report', {
+    p_jobsite: jobsiteId,
+    p_kind: kind,
+    p_photo_ids: kind === 'dispute' ? photoIds : null,
+  });
+  if (error) return { error: 'Demande refusée' };
+  return { ok: true };
+}
+
+/** Texte relu par le bureau : enregistré comme version suivante, l'ancienne reste. */
+export async function saveReportVersion(_: FormState, form: FormData): Promise<FormState> {
+  const user = await currentUser();
+  if (!permissions(user.role).decide)
+    return { error: 'Réservé au chef, au bureau et au dirigeant' };
+  const loaded = await loadReport(String(form.get('reportId') ?? ''));
+  if (!loaded) return { error: 'Rapport introuvable' };
+  const { report, versions } = loaded;
+  const content = parseContent(report.content, report.kind);
+  const edits: ReportEdits = { texts: {}, added: {} };
+  for (const key of REPORT_SECTIONS) {
+    edits.texts[key] = content.sections[key].map((_s, i) => String(form.get(`${key}.${i}`) ?? ''));
+    edits.added![key] = String(form.get(`${key}.new`) ?? '');
+  }
+  const next = applyEdits(content, edits);
+  if (!contentChanged(content, next)) return { error: 'Aucune modification' };
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase
+    .from('reports')
+    .insert({
+      jobsite_id: report.jobsite_id,
+      kind: report.kind,
+      series_id: report.series_id,
+      period: report.period,
+      version: Math.max(...versions.map((v) => v.version)) + 1,
+      content: next,
+    })
+    .select('id')
+    .single();
+  if (error || !data)
+    return { error: 'Version non enregistrée (une autre vient peut-être de l’être)' };
+  revalidatePath(`/chantiers/${report.jobsite_id}`);
+  redirect(`/rapports/${data.id}`);
 }

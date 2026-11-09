@@ -10,6 +10,8 @@ export const DENO_COPY_FILES = [
   'ai/transcriber.ts',
   'ai/mistral.ts',
   'ai/note.ts',
+  'ai/report-content.ts',
+  'ai/report.ts',
   'notify/push.ts',
 ] as const;
 

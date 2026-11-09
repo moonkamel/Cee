@@ -9,3 +9,4 @@ export * from './claude';
 export * from './transcriber';
 export * from './mistral';
 export * from './note';
+export * from './report';
