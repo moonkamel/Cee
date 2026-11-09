@@ -33,6 +33,7 @@ export default function OfficeLayout({ children }: LayoutProps<'/'>) {
           <Link href="/chantiers">Chantiers</Link>
           <Link href="/lots">Lots CEE</Link>
           <Link href="/exports">Exports</Link>
+          <Link href="/marketing">Marketing</Link>
           <Link href="/equipe">Équipe</Link>
           <Link href="/reglages">Réglages</Link>
           <span className="flex-1" />

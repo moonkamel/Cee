@@ -14,7 +14,10 @@ async function Settings() {
     .eq('id', user.id)
     .maybeSingle();
   const { data: company } = permissions(user.role).manageTeam
-    ? await supabase.from('companies').select('phone, google_review_url').maybeSingle()
+    ? await supabase
+        .from('companies')
+        .select('phone, google_review_url, marketing_tone')
+        .maybeSingle()
     : { data: null };
   return (
     <>
@@ -26,7 +29,11 @@ async function Settings() {
       {company ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-2xl font-bold">Entreprise</h2>
-          <CompanySettingsForm phone={company.phone} review={company.google_review_url} />
+          <CompanySettingsForm
+            phone={company.phone}
+            review={company.google_review_url}
+            tone={company.marketing_tone}
+          />
         </section>
       ) : null}
     </>

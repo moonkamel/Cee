@@ -33,6 +33,7 @@ export const ALERTS = {
   },
   report_ready: { label: 'Rapport prêt à relire', critical: false, channel: 'push' },
   photo_request: { label: 'Photo à reprendre', critical: false, channel: 'push' },
+  marketing_ready: { label: 'Contenu marketing à valider', critical: false, channel: 'push' },
 } as const satisfies Record<string, { label: string; critical: boolean; channel: AlertChannel }>;
 export type AlertKind = keyof typeof ALERTS;
 export const ALERT_KINDS = Object.keys(ALERTS) as AlertKind[];

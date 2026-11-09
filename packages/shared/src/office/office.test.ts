@@ -87,7 +87,12 @@ describe('décision sur une photo orange', () => {
       export: false,
       seeAllJobsites: false,
     });
-    expect(permissions('owner')).toMatchObject({ manageTeam: true, editTemplates: true });
+    expect(permissions('owner')).toMatchObject({
+      manageTeam: true,
+      editTemplates: true,
+      marketing: true,
+    });
+    expect(permissions('office').marketing).toBe(false);
   });
 
   it('message de reprise : saisi, sinon celui de l’IA, 8 mots au plus', () => {

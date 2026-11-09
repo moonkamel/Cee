@@ -2,6 +2,7 @@
 
 import {
   extendedExpiry,
+  isTone,
   LINK_DAYS,
   newLinkToken,
   normalizeFrenchPhone,
@@ -92,7 +93,7 @@ export async function setClientPhoto(form: FormData) {
   revalidatePath(`/chantiers/${String(form.get('jobsiteId') ?? '')}`);
 }
 
-/** Téléphone de l'entreprise (boutons de la page client) et lien de sa fiche Google. */
+/** Téléphone de l'entreprise, lien de sa fiche Google et ton des légendes marketing. */
 export async function saveCompanySettings(_: FormState, form: FormData): Promise<FormState> {
   const user = await currentUser();
   if (!permissions(user.role).manageTeam) return { error: 'Réservé à l’admin et au dirigeant' };
@@ -102,6 +103,8 @@ export async function saveCompanySettings(_: FormState, form: FormData): Promise
   const review = String(form.get('review') ?? '').trim() || null;
   if (review && !/^https:\/\/\S+$/.test(review))
     return { error: 'Le lien Google doit commencer par https://' };
+  const tone = form.get('tone');
+  if (!isTone(tone)) return { error: 'Choisissez un ton' };
   const supabase = await supabaseServer();
   const { data: profile } = await supabase
     .from('profiles')
@@ -110,7 +113,7 @@ export async function saveCompanySettings(_: FormState, form: FormData): Promise
     .single();
   const { error } = await supabase
     .from('companies')
-    .update({ phone, google_review_url: review })
+    .update({ phone, google_review_url: review, marketing_tone: tone })
     .eq('id', profile!.company_id);
   if (error) return { error: 'Réglages non enregistrés' };
   revalidatePath('/reglages');

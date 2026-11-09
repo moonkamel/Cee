@@ -14,6 +14,8 @@ export function permissions(role: Role | null | undefined) {
     editTemplates: role === 'admin' || role === 'owner',
     manageTeam: role === 'admin' || role === 'owner',
     seeAllJobsites: role === 'office' || role === 'admin' || role === 'owner',
+    // File « À valider » des contenus marketing (section 13, RLS : admin et dirigeant).
+    marketing: role === 'admin' || role === 'owner',
   };
 }
 

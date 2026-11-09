@@ -1,5 +1,6 @@
 'use client';
 
+import { MARKETING_TONES, TONE_LABELS } from '@preuvio/shared';
 import { useActionState, useState } from 'react';
 import type { FormState } from '@/app/actions';
 import { createClientLink, type LinkState, saveCompanySettings } from '@/app/client-actions';
@@ -65,9 +66,11 @@ export function ClientLinkForm({ jobsiteId, hasPhone }: { jobsiteId: string; has
 export function CompanySettingsForm({
   phone,
   review,
+  tone,
 }: {
   phone: string | null;
   review: string | null;
+  tone: string;
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveCompanySettings, null);
   return (
@@ -90,6 +93,19 @@ export function CompanySettingsForm({
         />
         <span className="text-base text-text-muted">
           Proposé au client seulement après un PV signé sans réserve, sans aucune contrepartie.
+        </span>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="font-bold">Ton des légendes marketing</span>
+        <select name="tone" defaultValue={tone} className={field}>
+          {MARKETING_TONES.map((t) => (
+            <option key={t} value={t}>
+              {TONE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+        <span className="text-base text-text-muted">
+          Ton proposé par défaut, modifiable à chaque contenu.
         </span>
       </label>
       <div className="flex flex-wrap items-center gap-3">

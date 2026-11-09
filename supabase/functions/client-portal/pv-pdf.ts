@@ -2,7 +2,7 @@
 // gabarit fixe, aucun fichier fourni par le navigateur. Police standard Helvetica (accents
 // français couverts par l'encodage WinAnsi).
 import { PDFDocument, type PDFFont, rgb, StandardFonts } from 'npm:pdf-lib@1.17.1';
-import type { PvContent } from '../_shared/client/index.ts';
+import { MARKETING_CONSENT_LABEL, type PvContent } from '../_shared/client/index.ts';
 
 const A4: [number, number] = [595.28, 841.89];
 const MARGIN = 50;
@@ -88,13 +88,10 @@ export async function renderPv(pv: PvContent, signaturePng: Uint8Array, document
     `Fait le ${paris(pv.signedAt)}, par ${pv.signer}${pv.smsVerified ? ' (identité confirmée par code SMS)' : ''}.`,
   );
   if (pv.marketingConsent) {
-    write(
-      "Le client accepte que l'entreprise utilise des photos de ces travaux, sans élément permettant de l'identifier.",
-      {
-        size: 9,
-        color: MUTED,
-      },
-    );
+    write(`Case cochée par le client : « ${MARKETING_CONSENT_LABEL} »`, {
+      size: 9,
+      color: MUTED,
+    });
   }
 
   const img = await doc.embedPng(signaturePng);

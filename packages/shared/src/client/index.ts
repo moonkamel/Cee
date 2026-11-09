@@ -91,8 +91,9 @@ export type PvContent = {
 };
 
 export const PV_TITLE = 'Procès-verbal de réception des travaux';
+/** Texte exact de la case du PV (section 13). */
 export const MARKETING_CONSENT_LABEL =
-  'J’accepte que l’entreprise utilise des photos de ces travaux, sans élément permettant de m’identifier, pour présenter son savoir-faire.';
+  'J’accepte que les photos de mes travaux, sans adresse ni visage, soient utilisées par l’entreprise.';
 
 /** Contenu du PV présenté au client puis signé : il est figé et son empreinte enregistrée. */
 export function pvContent(input: {
