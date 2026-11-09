@@ -1,6 +1,7 @@
 import type { Annotation, WaiverReason } from '@preuvio/shared';
 import { act, fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
 import { Stack } from 'expo-router';
+import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import { AuthProvider, type AuthService } from '@/auth/auth';
 import { DataProvider } from '@/data/data-context';
@@ -148,6 +149,7 @@ const data: jest.Mocked<DataSource> = {
   answerQuestion: jest.fn(async (_o: string, _k: string, _v: boolean | number) => undefined),
   waiveSlot: jest.fn(async (_slotId: string, _reason: WaiverReason) => undefined),
   finishJobsite: jest.fn(async (_jobsiteId: string) => undefined),
+  clientModeUrl: jest.fn(async (_jobsiteId: string): Promise<string | null> => null),
   resolvePhotoCheck: jest.fn(async (_photoId: string, _keep: boolean) => undefined),
   keepDespiteAi: jest.fn(async (_slotId: string) => undefined),
   recordVoiceNote: jest.fn(
@@ -585,6 +587,25 @@ describe('checklist d’un chantier (S8)', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Terminer quand même' }));
     expect(data.finishJobsite).toHaveBeenCalledWith('j1');
     await waitFor(() => expect(router.getPathname()).toBe('/'));
+  });
+
+  it('mode client : la page client s’ouvre ; hors ligne, un message', async () => {
+    data.listSlots.mockResolvedValue([proof('a', { status: 'captured' })]);
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    data.clientModeUrl.mockResolvedValueOnce('https://preuvio-web.vercel.app/c/jeton');
+    await renderRouter(routes, { initialUrl: '/jobsite/j1/summary' });
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Faire signer le PV au client' }),
+    );
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith('https://preuvio-web.vercel.app/c/jeton'),
+    );
+    expect(data.clientModeUrl).toHaveBeenCalledWith('j1');
+
+    data.clientModeUrl.mockResolvedValueOnce(null);
+    await fireEvent.press(screen.getByRole('button', { name: 'Faire signer le PV au client' }));
+    expect(await screen.findByText('Réseau nécessaire pour la signature')).toBeTruthy();
+    open.mockRestore();
   });
 
   it('un manque ouvre la caméra sur la bonne preuve', async () => {

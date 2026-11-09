@@ -170,6 +170,22 @@ export async function buildExport(exportId: string): Promise<{ ok: boolean; erro
     });
     if (missingFiles.length) return fail(`Photo pas encore envoyée : ${missingFiles.join(', ')}`);
 
+    // PV de réception signé (section 12) : joint aux pièces, mentionné dans la synthèse.
+    const { data: signature } = await supabase
+      .from('signatures')
+      .select('signed_at, signer_name, has_reserves, reserves, pdf_path')
+      .eq('jobsite_id', jobsiteId)
+      .order('signed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (signature?.pdf_path) {
+      const { data: pvFile } = await supabase.storage
+        .from('documents')
+        .download(signature.pdf_path);
+      if (!pvFile) return fail('PV signé illisible');
+      add('pieces/pv_reception.pdf', new Uint8Array(await pvFile.arrayBuffer()));
+    }
+
     // Pièces administratives.
     const counters = new Map<string, number>();
     for (const d of docs ?? []) {
@@ -214,6 +230,7 @@ export async function buildExport(exportId: string): Promise<{ ok: boolean; erro
       verifyUrl: '',
       qrDataUrl: '',
       issuedAt: new Date().toISOString(),
+      signature,
     });
     // Mêmes numéros que la grille de vignettes : ordre de prise de vue.
     const order = [...proofPhotos]

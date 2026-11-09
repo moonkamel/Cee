@@ -195,6 +195,7 @@ export function createLocalSource({
   newId,
   deviceInfo = { model: null, appVersion: null },
   uploads = null,
+  clientLinks = null,
 }: {
   engine: SyncEngine;
   currentUserId: () => string | null;
@@ -202,6 +203,8 @@ export function createLocalSource({
   deviceInfo?: { model: string | null; appVersion: string | null };
   /** Envoi des photos (absent dans les tests qui n'en ont pas besoin). */
   uploads?: UploadRunner | null;
+  /** Lien du mode client, demandé au serveur (absent dans les tests qui n'en ont pas besoin). */
+  clientLinks?: ((jobsiteId: string) => Promise<string | null>) | null;
 }): DataSource {
   /** Synchronise, puis envoie les fichiers dont la fiche vient d'arriver au serveur. */
   const syncThenUpload = (force = false) =>
@@ -239,6 +242,13 @@ export function createLocalSource({
         role: profile.role as Role,
         companyName: str(company?.name),
       };
+    },
+
+    async clientModeUrl(jobsiteId) {
+      if (!clientLinks) return null;
+      // Le chantier doit exister au serveur : on synchronise d'abord, sans attendre les photos.
+      await engine.sync({ force: true }).catch(() => undefined);
+      return clientLinks(jobsiteId).catch(() => null);
     },
 
     async createJobsite(input) {

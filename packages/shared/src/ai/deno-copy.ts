@@ -13,6 +13,7 @@ export const DENO_COPY_FILES = [
   'ai/report-content.ts',
   'ai/report.ts',
   'notify/push.ts',
+  'client/index.ts',
 ] as const;
 
 export function toDeno(source: string, file: string): string {

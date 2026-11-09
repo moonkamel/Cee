@@ -18,3 +18,4 @@ export * from './reports';
 export * from './exports';
 export * from './import';
 export * from './alerts';
+export * from './client';

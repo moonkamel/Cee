@@ -19,7 +19,8 @@ export async function proxy(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const isLogin = request.nextUrl.pathname.startsWith('/connexion');
   // Vérification d'un rapport (QR code) : publique, pour le client, l'assureur ou l'expert.
-  const isPublic = request.nextUrl.pathname.startsWith('/verifier/');
+  // Page client (lien personnel, section 12) : publique aussi, le jeton du lien fait foi.
+  const isPublic = ['/verifier/', '/c/'].some((p) => request.nextUrl.pathname.startsWith(p));
   if (!data?.claims && !isLogin && !isPublic) {
     const login = request.nextUrl.clone();
     login.pathname = '/connexion';

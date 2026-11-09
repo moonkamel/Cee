@@ -71,5 +71,6 @@ chef d'équipe `+33 6 39 98 00 02`, poseur `+33 6 39 98 00 03`.
 | S13     | Rapports PDF                       | Terminée |
 | S14     | Exports délégataires               | Terminée |
 | S15     | Lots CEE et alertes                | Terminée |
+| S16     | Page client et PV                  | Terminée |
 
 Le plan complet (19 sessions, 5 phases) est dans la section 18 du cahier des charges.

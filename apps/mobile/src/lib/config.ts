@@ -11,4 +11,10 @@ if (!supabaseUrl || !supabasePublishableKey) {
   );
 }
 
-export const config = { supabaseUrl, supabasePublishableKey };
+// Page client du mode client (section 12) : le tableau de bord web en production par défaut.
+const webUrl = (process.env.EXPO_PUBLIC_WEB_URL ?? 'https://preuvio-web.vercel.app').replace(
+  /\/$/,
+  '',
+);
+
+export const config = { supabaseUrl, supabasePublishableKey, webUrl };

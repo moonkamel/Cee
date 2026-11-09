@@ -4,6 +4,7 @@ import { randomUUID } from 'expo-crypto';
 import * as Device from 'expo-device';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from '@/auth/auth';
+import { config } from '@/lib/config';
 import { supabase } from '@/lib/supabase';
 import { DataProvider } from './data-context';
 import { openLocalDb } from './expo-sqlite-db';
@@ -68,6 +69,13 @@ export function DataBootstrap({ children }: { children: ReactNode }) {
               appVersion: Application.nativeApplicationVersion ?? null,
             },
             uploads,
+            // Mode client : lien d'un jour créé par le serveur pour un chantier de ce poseur.
+            clientLinks: async (jobsiteId) => {
+              const { data, error } = await supabase.rpc('client_mode_link', {
+                p_jobsite: jobsiteId,
+              });
+              return error || typeof data !== 'string' ? null : `${config.webUrl}/c/${data}`;
+            },
           })
         : null,
     [engine, uploads, userId],

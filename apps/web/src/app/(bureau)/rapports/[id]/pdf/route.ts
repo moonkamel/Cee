@@ -65,6 +65,15 @@ export async function GET(request: Request, ctx: RouteContext<'/rapports/[id]/pd
     verifyUrl,
     qrDataUrl: await QRCode.toDataURL(verifyUrl, { margin: 1, width: 240 }),
     issuedAt: new Date().toISOString(),
+    signature: (
+      await supabase
+        .from('signatures')
+        .select('signed_at, signer_name, has_reserves, reserves')
+        .eq('jobsite_id', report.jobsite_id)
+        .order('signed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    ).data,
   });
   const pdf = new Uint8Array(
     await renderToBuffer(

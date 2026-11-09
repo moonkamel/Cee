@@ -179,6 +179,11 @@ export interface DataSource {
   saveAnnotations(photoId: string, annotations: Annotation[]): Promise<void>;
   /** « Garder quand même » après une alerte orange de l'IA : le bureau tranchera. */
   keepDespiteAi(slotId: string): Promise<void>;
+  /**
+   * Mode client (section 12) : lien d'un jour vers la page client, pour que le client signe son
+   * PV sur ce téléphone. Réseau requis ; null hors ligne ou si le serveur refuse.
+   */
+  clientModeUrl(jobsiteId: string): Promise<string | null>;
   /** « Terminer le chantier » : statut « terminé par le poseur ». */
   finishJobsite(jobsiteId: string): Promise<void>;
   listPhotos(jobsiteId: string): Promise<PhotoSummary[]>;

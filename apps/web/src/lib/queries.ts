@@ -10,7 +10,7 @@ export const JOBSITE_SELECT = `id, address, reference, status, planned_start, pl
   clients ( full_name ),
   jobsite_assignees ( profile_id, profiles ( full_name ) ),
   proof_slots ( id, instruction, status, required, applicable, waiver_reason, waiver_validated_at, updated_at,
-    photos ( id, original_path, device_taken_at, author_id, ai_result, ai_kept_at, deleted_at ) )`;
+    photos ( id, original_path, device_taken_at, author_id, ai_result, ai_kept_at, deleted_at, client_hidden ) )`;
 
 export async function loadDashboard() {
   const supabase = await supabaseServer();
@@ -94,4 +94,42 @@ export async function loadTeam() {
     .select('id, full_name, role, phone, active, team_id')
     .order('full_name');
   return data ?? [];
+}
+
+/** Espace client d'un chantier : liens, PV signé, photos libres (section 12). */
+export async function loadClientSpace(jobsiteId: string) {
+  const supabase = await supabaseServer();
+  const [links, signature, freePhotos, client] = await Promise.all([
+    supabase
+      .from('share_links')
+      .select('id, purpose, require_sms, expires_at, revoked_at, last_seen_at, created_at')
+      .eq('jobsite_id', jobsiteId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('signatures')
+      .select(
+        'id, signed_at, signer_name, has_reserves, reserves, marketing_consent, sms_verified, pdf_path',
+      )
+      .eq('jobsite_id', jobsiteId)
+      .order('signed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('photos')
+      .select('id, original_path, thumbnail_path, caption, device_taken_at, client_visible')
+      .eq('jobsite_id', jobsiteId)
+      .is('proof_slot_id', null)
+      .is('deleted_at', null)
+      .eq('source', 'camera')
+      .order('device_taken_at'),
+    supabase.from('jobsites').select('clients ( phone )').eq('id', jobsiteId).maybeSingle(),
+  ]);
+  return {
+    links: links.data ?? [],
+    signature: signature.data,
+    freePhotos: freePhotos.data ?? [],
+    clientHasPhone: Boolean(
+      (client.data?.clients as unknown as { phone: string | null } | null)?.phone,
+    ),
+  };
 }

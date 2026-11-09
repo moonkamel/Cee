@@ -71,6 +71,21 @@ export type PdfNoteRow = {
 
 const PV_PENDING = 'Le PV de réception signé par le client sera joint dès sa signature.';
 
+export type PdfSignatureRow = {
+  signed_at: string;
+  signer_name: string;
+  has_reserves: boolean;
+  reserves: string | null;
+};
+
+/** Mention du PV de réception (section 12) : signé, avec ou sans réserves, sinon à venir. */
+export function pvMention(signature: PdfSignatureRow | null | undefined): string {
+  if (!signature) return PV_PENDING;
+  return `PV signé le ${formatParis(signature.signed_at)} par ${signature.signer_name}, ${
+    signature.has_reserves ? `avec réserves : ${signature.reserves ?? ''}` : 'sans réserve'
+  }. Signature électronique simple ; le PV signé est rangé dans le dossier du chantier.`;
+}
+
 function rgeLines(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((q) => {
@@ -106,6 +121,7 @@ export function buildPdfData(input: {
   verifyUrl: string;
   qrDataUrl: string;
   issuedAt: string;
+  signature?: PdfSignatureRow | null;
 }): ReportPdfData {
   const { report, jobsite, company } = input;
   const content = parseContent(report.content, report.kind);
@@ -153,7 +169,7 @@ export function buildPdfData(input: {
         ? []
         : equipmentFrom(photos.map((p) => ({ label: label(p), ai_result: p.ai_result }))),
     missing: report.kind === 'dispute' ? null : missingProofs(jobsite.proof_slots),
-    pv: report.kind === 'completion' ? PV_PENDING : null,
+    pv: report.kind === 'completion' ? pvMention(input.signature) : null,
     photos: photos.map((p, i) => ({
       n: i + 1,
       label: label(p),

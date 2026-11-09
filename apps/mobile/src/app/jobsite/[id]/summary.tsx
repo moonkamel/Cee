@@ -1,5 +1,6 @@
 import { checklistSummary } from '@preuvio/shared';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Screen } from '@/components/Screen';
@@ -18,12 +19,22 @@ export default function SummaryScreen() {
   const { slots } = useProofs(id);
   const { spacing } = useTheme();
   const [confirm, setConfirm] = useState(false);
+  const [clientMode, setClientMode] = useState<'idle' | 'opening' | 'offline'>('idle');
   const summary = checklistSummary(slots ?? []);
 
   const openCamera = (slot: string) =>
     router.push({ pathname: '/jobsite/[id]/camera', params: { id, slot } });
   const waive = (slot: string) =>
     router.push({ pathname: '/jobsite/[id]/waive', params: { id, slot } });
+
+  // Mode client (section 12) : la page client s'ouvre en grand, le poseur tend son téléphone.
+  const openClientMode = async () => {
+    setClientMode('opening');
+    const url = await data.clientModeUrl(id);
+    if (!url) return setClientMode('offline');
+    setClientMode('idle');
+    await Linking.openURL(url);
+  };
 
   const finish = () => {
     if (!summary.complete && !confirm) {
@@ -91,6 +102,20 @@ export default function SummaryScreen() {
       {summary.waiversPending.length > 0 ? (
         <AppText color="warn">
           {t('summary.waivers', { count: summary.waiversPending.length })}
+        </AppText>
+      ) : null}
+
+      <AppText color="text-muted">{t('summary.clientModeHint')}</AppText>
+      <BigButton
+        variant="secondary"
+        icon="draw"
+        label={t('summary.clientMode')}
+        onPress={() => void openClientMode()}
+        disabled={clientMode === 'opening'}
+      />
+      {clientMode === 'offline' ? (
+        <AppText color="ko" accessibilityLiveRegion="polite">
+          {t('summary.clientModeOffline')}
         </AppText>
       ) : null}
 

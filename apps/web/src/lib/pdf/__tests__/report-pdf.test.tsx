@@ -188,3 +188,22 @@ describe('polices intégrées', () => {
     expect(ATKINSON_700).toBe(`data:font/woff;base64,${file(700)}`);
   });
 });
+
+describe('mention du PV dans les rapports', () => {
+  it('à venir, signé sans réserve, signé avec réserves', async () => {
+    const { pvMention } = await import('../build');
+    expect(pvMention(null)).toContain('sera joint dès sa signature');
+    const signed = {
+      signed_at: '2026-11-11T16:00:00Z',
+      signer_name: 'Marc Guérin',
+      has_reserves: false,
+      reserves: null,
+    };
+    expect(pvMention(signed)).toContain(
+      'PV signé le 11/11/2026 17:00 par Marc Guérin, sans réserve',
+    );
+    expect(pvMention({ ...signed, has_reserves: true, reserves: 'Habillage à finir' })).toContain(
+      'avec réserves : Habillage à finir',
+    );
+  });
+});

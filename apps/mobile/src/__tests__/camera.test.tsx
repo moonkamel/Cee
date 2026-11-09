@@ -126,6 +126,7 @@ const data: jest.Mocked<DataSource> = {
   answerQuestion: jest.fn(async (_o: string, _k: string, _v: boolean | number) => undefined),
   waiveSlot: jest.fn(async (_slotId: string, _reason: WaiverReason) => undefined),
   finishJobsite: jest.fn(async (_jobsiteId: string) => undefined),
+  clientModeUrl: jest.fn(async (_jobsiteId: string): Promise<string | null> => null),
   resolvePhotoCheck: jest.fn(async (_photoId: string, _keep: boolean) => undefined),
   keepDespiteAi: jest.fn(async (_slotId: string) => undefined),
   recordVoiceNote: jest.fn(

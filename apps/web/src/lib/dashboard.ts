@@ -28,6 +28,8 @@ export type SlotRow = {
     ai_result: { decision?: { kind?: string; message?: string; reason?: string } } | null;
     ai_kept_at: string | null;
     deleted_at: string | null;
+    /** Preuve masquée à la page client par le bureau (section 12). */
+    client_hidden?: boolean;
   }[];
 };
 
