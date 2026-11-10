@@ -11,7 +11,7 @@ export async function GET() {
     .from('jobsites')
     .select(
       `reference, address, status, planned_start, planned_end, quote_reference, created_at,
-       clients ( full_name, phone, email ), jobsite_operations ( code ), photos ( id )`,
+       clients ( full_name, phone, email ), jobsite_operations ( code ), photos!photos_jobsite_id_company_id_fkey ( id )`,
     )
     .eq('is_demo', false)
     .order('created_at');

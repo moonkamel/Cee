@@ -41,7 +41,7 @@ export async function loadCandidates(delegataire: Delegataire | null): Promise<C
         `id, reference, address, status, planned_start, planned_end, clients ( full_name ),
          proof_slots ( instruction, required, applicable, status ),
          jobsite_documents ( kind, document_date, deleted_at ),
-         photos ( device_taken_at, deleted_at )`,
+         photos!photos_jobsite_id_company_id_fkey ( device_taken_at, deleted_at )`,
       )
       .eq('is_demo', false)
       .in('status', [
