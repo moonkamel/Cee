@@ -17,6 +17,7 @@ export function okVerdict(checks: string[]): AiVerdict {
     checks: checks.map((id) => ({ id, pass: true, confidence: 0.95, reason: 'visible' })),
     extracted: EMPTY,
     user_message: '',
+    privacy_regions: [],
   };
 }
 
@@ -32,6 +33,7 @@ export function failVerdict(checks: string[], failing: string, message: string):
     })),
     extracted: EMPTY,
     user_message: message,
+    privacy_regions: [],
   };
 }
 

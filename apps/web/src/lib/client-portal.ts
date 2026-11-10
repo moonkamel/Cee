@@ -12,6 +12,8 @@ export type PortalPhoto = {
   thumbnail_path: string | null;
   original_path: string;
   extracted: Record<string, string | null> | null;
+  /** Visages et plaques repérés par le pré-contrôle IA : la page sert une copie floutée. */
+  privacy?: unknown[];
 };
 
 export type PortalView = {

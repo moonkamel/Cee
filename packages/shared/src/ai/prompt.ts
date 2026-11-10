@@ -33,6 +33,7 @@ export const SYSTEM_PROMPT = [
   'user_message : un conseil au poseur en français, 8 mots au plus, à l’impératif (ex. « Plaque illisible, rapprochez-vous »). Vide si status est « ok ».',
   'extracted : recopie seulement ce qui est lisible sur la photo ; null sinon. N’invente jamais une valeur.',
   'Ignore les personnes : ne décris ni n’identifie jamais un visage.',
+  'privacy_regions : rectangle de chaque visage et de chaque plaque d’immatriculation visibles, en fractions de l’image (x, y : coin haut gauche ; w, h : taille, de 0 à 1), pour les flouter. Liste vide sinon.',
 ].join('\n');
 
 export type PhotoTask = {

@@ -133,10 +133,23 @@ async function Portal({ params }: { params: PageProps<'/c/[token]'>['params'] })
           <ul className="grid grid-cols-2 gap-2">
             {g.photos.map((p) => (
               <li key={p.id} className="flex flex-col gap-1">
-                <a href={url(p.original_path)} target="_blank" rel="noreferrer">
+                <a
+                  href={
+                    p.privacy?.length
+                      ? `/c/${token}/photo/${p.id}?original=1`
+                      : url(p.original_path)
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element -- lien signé temporaire */}
                   <img
-                    src={url(p.thumbnail_path ?? p.original_path)}
+                    src={
+                      // Visage ou plaque repéré : copie floutée servie par le web.
+                      p.privacy?.length
+                        ? `/c/${token}/photo/${p.id}`
+                        : url(p.thumbnail_path ?? p.original_path)
+                    }
                     alt={p.label || 'Photo du chantier'}
                     // Chargée tout de suite : le lien signé n'est valable que 5 minutes.
                     loading="eager"

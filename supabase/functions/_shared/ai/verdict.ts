@@ -31,6 +31,16 @@ export const aiVerdictSchema = z.object({
     thermal_resistance: z.string().nullable(),
   }),
   user_message: z.string(),
+  /** Visages et plaques d'immatriculation à flouter sur la copie montrée au client (section 16). */
+  privacy_regions: z.array(
+    z.object({
+      kind: z.enum(['face', 'plate']),
+      x: z.number(),
+      y: z.number(),
+      w: z.number(),
+      h: z.number(),
+    }),
+  ),
 });
 export type AiVerdict = z.infer<typeof aiVerdictSchema>;
 

@@ -145,3 +145,56 @@ begin
 end $$;
 revoke all on function public.queue_health() from public, anon, authenticated;
 grant execute on function public.queue_health() to service_role;
+
+-- Copies montrées au client (section 16) : la page reçoit les visages et plaques repérés par
+-- le pré-contrôle IA, et sert une copie floutée de ces photos.
+create or replace function public.client_portal(p_token text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_link public.share_links;
+  v_out jsonb;
+begin
+  v_link := app.valid_link(p_token);
+  if v_link.id is null then
+    return null;
+  end if;
+  update public.share_links set last_seen_at = now() where id = v_link.id;
+  select jsonb_build_object(
+    'link', jsonb_build_object('id', v_link.id, 'require_sms', v_link.require_sms, 'expires_at', v_link.expires_at,
+                               'purpose', v_link.purpose),
+    'company', jsonb_build_object('id', c.id, 'name', c.name, 'phone', c.phone, 'logo_path', c.logo_path,
+                                  'brand_color', c.brand_color, 'google_review_url', c.google_review_url,
+                                  'rge', c.rge_qualifications),
+    'jobsite', jsonb_build_object('id', j.id, 'reference', j.reference, 'address', j.address,
+                                  'planned_start', j.planned_start, 'planned_end', j.planned_end,
+                                  'client_name', cl.full_name, 'has_phone', cl.phone is not null,
+                                  'has_email', cl.email is not null,
+                                  'operations', coalesce((select jsonb_agg(o.label order by o.created_at)
+                                                          from public.jobsite_operations o where o.jobsite_id = j.id), '[]')),
+    'photos', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', p.id, 'phase', coalesce(s.phase, 'divers'), 'label', coalesce(s.instruction, p.caption, ''),
+               'taken_at', p.device_taken_at, 'thumbnail_path', p.thumbnail_path, 'original_path', p.original_path,
+               'extracted', p.ai_result -> 'verdict' -> 'extracted',
+               'privacy', coalesce(p.ai_result -> 'verdict' -> 'privacy_regions', '[]'))
+             order by p.device_taken_at)
+      from public.photos p left join public.proof_slots s on s.id = p.proof_slot_id
+      where p.jobsite_id = j.id and p.deleted_at is null and p.source = 'camera' and p.upload_status <> 'pending'
+        and ((p.proof_slot_id is not null and s.applicable and not p.client_hidden)
+             or (p.proof_slot_id is null and p.client_visible))), '[]'),
+    'report', (
+      select jsonb_build_object('pdf_path', r.pdf_path, 'content', r.content)
+      from public.reports r
+      where r.jobsite_id = j.id and r.kind = 'completion'
+      order by (r.pdf_path is not null) desc, r.created_at desc, r.version desc limit 1),
+    'signature', (
+      select jsonb_build_object('id', g.id, 'signed_at', g.signed_at, 'signer_name', g.signer_name,
+                                'has_reserves', g.has_reserves, 'reserves', g.reserves, 'pdf_path', g.pdf_path)
+      from public.signatures g where g.jobsite_id = j.id order by g.signed_at desc limit 1)
+  ) into v_out
+  from public.jobsites j
+  join public.companies c on c.id = j.company_id
+  left join public.clients cl on cl.id = j.client_id
+  where j.id = v_link.jobsite_id;
+  return v_out;
+end $$;
