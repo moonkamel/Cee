@@ -1,7 +1,7 @@
 -- Finitions avant pilote (S19) : plafond de SMS, effacement d'un client, journal d'audit.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(13);
 
 insert into auth.users (id, aud, role, phone) values
   ('e1100000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', '33639989501'),
@@ -49,6 +49,12 @@ select ok(not exists (
   where table_name = 'clients' and record_id in ('e1300000-0000-4000-8000-000000000001', 'e1300000-0000-4000-8000-000000000002')
     and (diff::text like '%+33639989510%' or diff::text like '%M. Sans Chantier%' or diff::text like '%b@example.com%')),
   'le journal d''audit ne garde plus les données effacées');
+
+-- Santé ---------------------------------------------------------------------------------------
+select is((public.queue_health() -> 'photo_analysis' ->> 'waiting')::int, 0, 'files lisibles par la supervision');
+set local role anon;
+select throws_ok($$select public.queue_health()$$, '42501', null, 'santé réservée au serveur');
+reset role;
 
 select * from finish();
 rollback;

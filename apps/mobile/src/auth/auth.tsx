@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { setTelemetryUser } from '@/lib/telemetry';
 
 /** Opérations de connexion, séparées de Supabase pour les tests. */
 export interface AuthService {
@@ -62,6 +63,9 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       unsubscribe();
     };
   }, [service]);
+
+  // Identifiant pseudonyme des événements et des erreurs (jamais le nom ni le numéro).
+  useEffect(() => setTelemetryUser(state.userId), [state.userId]);
 
   const value = useMemo(() => ({ ...state, auth: service }), [state, service]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

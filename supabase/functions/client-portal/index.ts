@@ -13,6 +13,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { brevoConfigured, sendEmail, sendSms, smsQuotaTake } from '../_shared/brevo.ts';
 import { canonicalJson, newSmsCode, pvContent } from '../_shared/client/index.ts';
 import { corsHeaders, json } from '../_shared/http.ts';
+import { sendEvents } from '../_shared/telemetry/index.ts';
 import { renderPv } from './pv-pdf.ts';
 
 // Liens signés de 5 minutes (section 16) : la page les redemande à chaque ouverture.
@@ -202,6 +203,17 @@ Deno.serve(async (req) => {
               .catch(() => undefined);
           }
         }
+        await sendEvents(Deno.env.get('POSTHOG_KEY'), [
+          {
+            event: 'pv_signed',
+            distinctId: `company:${p.company.id}`,
+            properties: {
+              reserves: pv.reserves !== null,
+              consent: pv.marketingConsent,
+              sms: pv.smsVerified,
+            },
+          },
+        ]);
         return json(200, { signature_id: id, pdf: !stored.error, sent });
       }
 

@@ -17,6 +17,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/dal';
 import { inviteErrorMessage } from '@/lib/onboarding/invite';
+import { trackServer } from '@/lib/telemetry';
 import { loadReport } from '@/lib/reports';
 import { supabaseServer } from '@/lib/supabase/server';
 
@@ -77,6 +78,8 @@ export async function decide(_: FormState, form: FormData): Promise<FormState> {
         );
   if (!result.ok)
     return { error: 'Décision refusée : droits insuffisants ou preuve déjà tranchée' };
+  if (choice === 'validate')
+    await trackServer('slot_completed', `user:${user.id}`, { by: 'office' });
   revalidatePath('/', 'layout');
   return { ok: true };
 }

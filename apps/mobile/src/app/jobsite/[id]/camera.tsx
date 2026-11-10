@@ -27,6 +27,7 @@ import { useProofs } from '@/data/use-proofs';
 import { t } from '@/i18n/fr';
 import { positionForPhoto, useHeadingRef } from '@/lib/heading';
 import { haptics } from '@/lib/haptics';
+import { cameraReady, recordPerf, recordPerfSince, track, trackOnce } from '@/lib/telemetry';
 import { processPhotoFile } from '@/lib/photo-pipeline';
 import { checkPhotoQuality } from '@/lib/photo-quality';
 import { useVoiceRecorder } from '@/lib/voice';
@@ -69,6 +70,7 @@ export default function CameraScreen() {
   useEffect(() => {
     if (!permission.hasPermission) void permission.requestPermission();
   }, [permission]);
+  useEffect(() => trackOnce(`jobsite:${id}`, 'jobsite_started'), [id]);
 
   // Sans preuve demandée : la prochaine à prendre, ou photo libre si tout est pris.
   // Revenue de « Impossible » : la preuve dispensée laisse place à la suivante.
@@ -109,6 +111,7 @@ export default function CameraScreen() {
         // L'alerte s'affiche dès le verdict, sans attendre l'empreinte ni la vignette.
         check: async (uri) => {
           const result = await checkPhotoQuality(uri);
+          recordPerf('local_check', result.ms);
           console.info('[photo] contrôle local', {
             verdict: result.verdict,
             checkMs: result.ms,
@@ -137,6 +140,11 @@ export default function CameraScreen() {
         localCheck: processed.check,
       });
       console.info('[photo] enregistrée', { ...processed.timings });
+      recordPerfSince('shutter_to_saved', shutter.getTime());
+      track('photo_taken', {
+        proof: slotId !== null,
+        local_check: processed.check?.verdict ?? 'ok',
+      });
       // Photo douteuse : on reste sur la preuve tant que le poseur n'a pas choisi.
       if ((processed.check?.verdict ?? 'ok') === 'ok') advanceAfter(slotId);
     } catch {
@@ -291,6 +299,7 @@ export default function CameraScreen() {
             device={device}
             outputs={[photoOutput]}
             isActive
+            onStarted={cameraReady}
             enableNativeZoomGesture
             enableNativeTapToFocusGesture
           />

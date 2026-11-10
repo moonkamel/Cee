@@ -9,6 +9,7 @@ import { useData } from '@/data/data-context';
 import { useProofs } from '@/data/use-proofs';
 import { t } from '@/i18n/fr';
 import { useTheme } from '@/theme/theme';
+import { track } from '@/lib/telemetry';
 
 // Écran de fin de chantier (sections 2 et 7) : « 9 preuves sur 9 » ou la liste des manques,
 // chacun ouvrant la caméra. Terminer avec des manques reste possible, après confirmation :
@@ -41,6 +42,7 @@ export default function SummaryScreen() {
       setConfirm(true);
       return;
     }
+    track('jobsite_completed', { complete: summary.complete });
     void data.finishJobsite(id).then(() => router.replace('/'));
   };
 

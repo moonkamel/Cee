@@ -10,6 +10,7 @@ import { AppStack } from '@/app-stack';
 import { AuthProvider, createSupabaseAuth } from '@/auth/auth';
 import { DataBootstrap } from '@/data/data-bootstrap';
 import { supabase } from '@/lib/supabase';
+import { startTelemetry } from '@/lib/telemetry';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -25,6 +26,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded || error) void SplashScreen.hideAsync();
   }, [loaded, error]);
+  useEffect(() => startTelemetry(), []);
 
   if (!loaded && !error) return null;
   return (

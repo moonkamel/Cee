@@ -125,3 +125,23 @@ begin
 end $$;
 revoke all on function public.erase_client(uuid) from public, anon;
 grant execute on function public.erase_client(uuid) to authenticated;
+
+-- Santé du service (section 17) : messages en attente et âge du plus ancien, par file.
+-- Lue par l'Edge Function « health » qu'interroge la supervision externe.
+create function public.queue_health() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_out jsonb := '{}';
+  v_name text;
+  v_waiting integer;
+  v_oldest double precision;
+begin
+  foreach v_name in array array['photo_analysis', 'voice_transcription', 'report_generation', 'marketing_generation'] loop
+    execute format('select count(*), extract(epoch from now() - min(enqueued_at)) from pgmq.%I', 'q_' || v_name)
+      into v_waiting, v_oldest;
+    v_out := v_out || jsonb_build_object(v_name, jsonb_build_object('waiting', v_waiting, 'oldest_s', round(v_oldest::numeric)));
+  end loop;
+  return v_out;
+end $$;
+revoke all on function public.queue_health() from public, anon, authenticated;
+grant execute on function public.queue_health() to service_role;

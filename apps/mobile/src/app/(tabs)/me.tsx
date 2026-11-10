@@ -1,7 +1,7 @@
 import * as Application from 'expo-application';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useAuth } from '@/auth/auth';
 import { Screen } from '@/components/Screen';
 import { AppText, BigButton, ToggleRow } from '@/components/ui';
@@ -82,9 +82,12 @@ export default function Me() {
           onPress={() => router.push('/catalogue')}
         />
       ) : null}
-      <AppText variant="caption" color="text-muted">
-        {t('me.version', { version: Application.nativeApplicationVersion ?? '0.0.0' })}
-      </AppText>
+      {/* Appui long : écran « Mesures » (performances de la section 17 sur ce téléphone). */}
+      <Pressable onLongPress={() => router.push('/mesures')} accessibilityRole="text">
+        <AppText variant="caption" color="text-muted">
+          {t('me.version', { version: Application.nativeApplicationVersion ?? '0.0.0' })}
+        </AppText>
+      </Pressable>
     </Screen>
   );
 }

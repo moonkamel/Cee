@@ -19,6 +19,7 @@ import {
   type ExtractField,
 } from '../_shared/ai/verdict.ts';
 import { json } from '../_shared/http.ts';
+import { sendEvents } from '../_shared/telemetry/index.ts';
 import { isServiceCall } from '../_shared/service.ts';
 
 const BATCH = 5;
@@ -207,6 +208,23 @@ async function handle(db: SupabaseClient, analyzer: PhotoAnalyzer, m: Message): 
     model: analysis.model,
     analyzed_at: new Date().toISOString(),
   });
+  // Suivi (section 17) : verdict, et preuve complétée si elle passe au vert.
+  const { data: slot } = await db
+    .from('proof_slots')
+    .select('status')
+    .eq('id', slotId)
+    .maybeSingle();
+  const company = `company:${photo.company_id}`;
+  await sendEvents(Deno.env.get('POSTHOG_KEY'), [
+    {
+      event: 'ai_verdict',
+      distinctId: company,
+      properties: { decision: decision.kind, model: analysis.model },
+    },
+    ...(slot?.status === 'compliant'
+      ? [{ event: 'slot_completed' as const, distinctId: company, properties: { by: 'ai' } }]
+      : []),
+  ]);
   return done(decision.kind);
 }
 

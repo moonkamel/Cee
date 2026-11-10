@@ -21,3 +21,4 @@ export * from './alerts';
 export * from './client';
 export * from './marketing';
 export * from './billing';
+export * from './telemetry';

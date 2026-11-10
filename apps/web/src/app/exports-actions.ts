@@ -19,6 +19,7 @@ import {
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/dal';
+import { trackServer } from '@/lib/telemetry';
 import { loadCandidates, loadDelegataires } from '@/lib/exports/queries';
 import { supabaseServer } from '@/lib/supabase/server';
 import { localToday } from '@/lib/today';
@@ -52,6 +53,11 @@ export async function createExports(_: FormState, form: FormData): Promise<FormS
     })),
   );
   if (error) return { error: 'Export refusé' };
+  const user = await currentUser();
+  await trackServer('export_created', `user:${user.id}`, {
+    jobsites: candidates.length,
+    incomplete: candidates.filter((c) => c.checks.some((k) => k.status === 'ko')).length,
+  });
   redirect(`/exports?lot=${batch}`);
 }
 
