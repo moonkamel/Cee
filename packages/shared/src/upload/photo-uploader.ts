@@ -50,6 +50,8 @@ export type UploadReport = {
   failed: number;
   /** Photos encore à envoyer après ce passage. */
   waiting: number;
+  /** Photos sautées car leur fiche n'est pas encore acceptée par le serveur. */
+  unsynced?: number;
   blocked: UploadBlock | null;
 };
 
@@ -137,7 +139,10 @@ export function createPhotoUploader({
     if (!report.blocked) {
       for (const photo of photosToUpload(await engine.rows('photos'))) {
         // La fiche de la photo doit être sur le serveur avant son fichier (RLS, contrôle).
-        if (!(await engine.isSynced('photos', String(photo.id)))) continue;
+        if (!(await engine.isSynced('photos', String(photo.id)))) {
+          report.unsynced = (report.unsynced ?? 0) + 1;
+          continue;
+        }
         const nextAt = Number(photo._uploadNextAt ?? 0);
         if (!force && nextAt > now()) continue;
         if (!(await handle(photo, report))) {

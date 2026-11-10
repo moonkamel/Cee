@@ -4,7 +4,7 @@
 // SDK natif : pas de nouveau build mobile, et rien n'est envoyé si la clé est absente.
 // Fichier recopié pour les Edge Functions (voir ai/deno-copy.ts) : aucun import.
 
-/** Événements nommés de la section 17, plus les mesures de performance de l'appli. */
+/** Événements nommés de la section 17, plus les mesures de performance et d'envoi de l'appli. */
 export const EVENTS = [
   'app_open',
   'jobsite_started',
@@ -15,6 +15,7 @@ export const EVENTS = [
   'export_created',
   'pv_signed',
   'perf_metric',
+  'upload_run',
 ] as const;
 export type EventName = (typeof EVENTS)[number];
 

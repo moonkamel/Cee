@@ -12,6 +12,7 @@ import {
 import * as Battery from 'expo-battery';
 import { File } from 'expo-file-system';
 import { supabase } from '@/lib/supabase';
+import { reportHandledError, track } from '@/lib/telemetry';
 import { WIFI_ONLY_META } from './settings';
 
 /** Réseau et batterie du moment, pour décider si l'on envoie les photos. */
@@ -39,26 +40,25 @@ export type UploadRunner = {
 
 /** Envoi des photos de ce téléphone vers Supabase Storage, contrôlé par verify-photo. */
 export function createUploadRunner(engine: SyncEngine): UploadRunner {
-  const transport = createSupabaseUploadTransport(supabase, {
-    read: (uri) => new File(uri).bytes(),
-    async remove(uri) {
-      const file = new File(uri);
-      if (file.exists) file.delete();
-    },
-  });
-  const uploader = createPhotoUploader({ engine, transport });
   const files = {
-    read: (uri: string) => new File(uri).bytes(),
+    read: async (uri: string) => new File(uri).bytes(),
     async remove(uri: string) {
       const file = new File(uri);
       if (file.exists) file.delete();
     },
   };
+  const transport = createSupabaseUploadTransport(supabase, files, (stage, error) =>
+    reportHandledError(error, `photo_${stage}`),
+  );
+  const uploader = createPhotoUploader({ engine, transport });
   // Notes vocales : mêmes conditions (réseau, batterie, Wi-Fi), après les photos.
   const voice = createVoiceUploader({
     engine,
-    transport: createSupabaseVoiceTransport(supabase, files),
+    transport: createSupabaseVoiceTransport(supabase, files, (stage, error) =>
+      reportHandledError(error, `voice_${stage}`),
+    ),
   });
+  let lastSummary = '';
   const listeners = new Set<() => void>();
   let blocked: UploadBlock | null = null;
 
@@ -67,7 +67,30 @@ export function createUploadRunner(engine: SyncEngine): UploadRunner {
       const wifiOnly = (await engine.getMeta(WIFI_ONLY_META)) === '1';
       const conditions = await readUploadConditions(wifiOnly);
       const report = await uploader.run(conditions, { force });
-      await voice.run(conditions, { force }).catch(() => undefined);
+      const voiceReport = await voice.run(conditions, { force }).catch((error: unknown) => {
+        reportHandledError(error, 'voice_run');
+        return null;
+      });
+      // Suivi : un événement quand l'état des envois change (pas à chaque minute).
+      const voiceWaiting = voiceReport?.waiting ?? 0;
+      const summary = `${report.blocked}:${report.verified}:${report.failed}:${report.waiting}:${voiceWaiting}`;
+      if (
+        summary !== lastSummary &&
+        (report.waiting > 0 || report.verified > 0 || voiceWaiting > 0)
+      ) {
+        lastSummary = summary;
+        track('upload_run', {
+          verified: report.verified,
+          failed: report.failed,
+          waiting: report.waiting,
+          unsynced: report.unsynced ?? 0,
+          blocked: report.blocked,
+          wifi: conditions.wifi,
+          battery: conditions.batteryLevel,
+          voice_failed: voiceReport?.failed ?? null,
+          voice_waiting: voiceReport?.waiting ?? null,
+        });
+      }
       if (report.blocked !== blocked) {
         blocked = report.blocked;
         listeners.forEach((l) => l());

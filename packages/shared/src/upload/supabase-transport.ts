@@ -31,6 +31,40 @@ export function classifyVerifyStatus(status: number | null): VerifyResult {
   return 'retry';
 }
 
+/** Étape d'un envoi qui a échoué, pour le suivi des erreurs (jamais montré au poseur). */
+export type UploadErrorStage = 'read' | 'upload' | 'verify';
+export type UploadErrorHandler = (stage: UploadErrorStage, error: unknown) => void;
+
+/** Lecture du fichier puis envoi au stockage, commun aux photos et aux notes vocales. */
+async function sendFile(
+  client: SupabaseClient,
+  files: { read(localUri: string): Promise<Uint8Array> },
+  bucket: string,
+  contentType: string,
+  storagePath: string,
+  localUri: string,
+  onError: UploadErrorHandler,
+): Promise<UploadResult> {
+  let bytes: Uint8Array;
+  try {
+    bytes = await files.read(localUri);
+  } catch (error) {
+    onError('read', error);
+    return 'rejected';
+  }
+  try {
+    const { error } = await client.storage
+      .from(bucket)
+      .upload(storagePath, bytes, { contentType, upsert: false });
+    const result = classifyUploadError(error as StorageErrorLike);
+    if (result === 'retry' || result === 'rejected') onError('upload', error);
+    return result;
+  } catch (error) {
+    onError('upload', error);
+    return 'retry';
+  }
+}
+
 export function createSupabaseUploadTransport(
   client: SupabaseClient,
   files: {
@@ -38,24 +72,11 @@ export function createSupabaseUploadTransport(
     read(localUri: string): Promise<Uint8Array>;
     remove(localUri: string): Promise<void>;
   },
+  onError: UploadErrorHandler = () => undefined,
 ): UploadTransport {
   return {
-    async upload(storagePath, localUri) {
-      let bytes: Uint8Array;
-      try {
-        bytes = await files.read(localUri);
-      } catch {
-        return 'rejected';
-      }
-      try {
-        const { error } = await client.storage
-          .from(PHOTO_BUCKET)
-          .upload(storagePath, bytes, { contentType: 'image/jpeg', upsert: false });
-        return classifyUploadError(error as StorageErrorLike);
-      } catch {
-        return 'retry';
-      }
-    },
+    upload: (storagePath, localUri) =>
+      sendFile(client, files, PHOTO_BUCKET, 'image/jpeg', storagePath, localUri, onError),
 
     async verify(photoId) {
       try {
@@ -64,8 +85,13 @@ export function createSupabaseUploadTransport(
         });
         if (!error) return 'verified';
         const context = (error as { context?: { status?: number } }).context;
-        return classifyVerifyStatus(typeof context?.status === 'number' ? context.status : null);
-      } catch {
+        const result = classifyVerifyStatus(
+          typeof context?.status === 'number' ? context.status : null,
+        );
+        if (result === 'retry') onError('verify', error);
+        return result;
+      } catch (error) {
+        onError('verify', error);
         return 'retry';
       }
     },
@@ -80,24 +106,11 @@ export const VOICE_BUCKET = 'voice-notes';
 export function createSupabaseVoiceTransport(
   client: SupabaseClient,
   files: { read(localUri: string): Promise<Uint8Array>; remove(localUri: string): Promise<void> },
+  onError: UploadErrorHandler = () => undefined,
 ): VoiceTransport {
   return {
-    async upload(storagePath, localUri) {
-      let bytes: Uint8Array;
-      try {
-        bytes = await files.read(localUri);
-      } catch {
-        return 'rejected';
-      }
-      try {
-        const { error } = await client.storage
-          .from(VOICE_BUCKET)
-          .upload(storagePath, bytes, { contentType: 'audio/mp4', upsert: false });
-        return classifyUploadError(error as StorageErrorLike);
-      } catch {
-        return 'retry';
-      }
-    },
+    upload: (storagePath, localUri) =>
+      sendFile(client, files, VOICE_BUCKET, 'audio/mp4', storagePath, localUri, onError),
     deleteLocal: (localUri) => files.remove(localUri),
   };
 }

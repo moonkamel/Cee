@@ -8,6 +8,7 @@ import {
 } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
 import { useEffect, useRef, useState } from 'react';
+import { reportHandledError } from './telemetry';
 
 // Enregistrement d'une note vocale (section 9) : appui long pour parler, relâcher pour finir,
 // arrêt automatique à 2 minutes. L'audio est rangé dans l'appli, hors ligne.
@@ -31,34 +32,60 @@ export function useVoiceRecorder(onRecorded: (note: RecordedNote) => void, newId
   const state = useAudioRecorderState(recorder, 150);
   const [levels, setLevels] = useState<number[]>([]);
   const [denied, setDenied] = useState(false);
-  const active = useRef(false);
+  // Étape de l'enregistreur : un appui pendant le démarrage ou l'arrêt ne relance rien
+  // (sur Android, préparer ou arrêter deux fois lève java.lang.RuntimeException).
+  const phase = useRef<'idle' | 'starting' | 'recording' | 'stopping'>('idle');
+  const released = useRef(false);
   const stopRef = useRef<() => Promise<void>>(async () => undefined);
 
   async function start() {
-    const permission = await requestRecordingPermissionsAsync();
-    if (!permission.granted) {
-      setDenied(true);
+    if (phase.current !== 'idle') return;
+    phase.current = 'starting';
+    released.current = false;
+    try {
+      const permission = await requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        setDenied(true);
+        phase.current = 'idle';
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      phase.current = 'recording';
+      setLevels([]);
+    } catch (error) {
+      phase.current = 'idle';
+      reportHandledError(error, 'voice_start');
       return;
     }
-    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-    await recorder.prepareToRecordAsync();
-    recorder.record();
-    active.current = true;
-    setLevels([]);
+    // Doigt relâché pendant le démarrage : on arrête tout de suite.
+    if (released.current) await stop();
   }
 
   async function stop() {
-    if (!active.current) return;
-    active.current = false;
-    const durationS = recorder.getStatus().durationMillis / 1000;
-    await recorder.stop();
-    const uri = recorder.uri;
-    if (!uri || durationS < 0.5) return; // appui trop court : rien à garder
-    const id = newId();
-    const file = new File(uri.startsWith('file://') ? uri : `file://${uri}`);
-    const target = new File(voiceDirectory(), `${id}.m4a`);
-    file.move(target);
-    onRecorded({ id, localUri: target.uri, durationS: Math.min(durationS, MAX_VOICE_SECONDS) });
+    if (phase.current === 'starting') {
+      released.current = true;
+      return;
+    }
+    if (phase.current !== 'recording') return;
+    phase.current = 'stopping';
+    try {
+      const durationS = recorder.getStatus().durationMillis / 1000;
+      await recorder.stop();
+      const uri = recorder.uri;
+      if (!uri || durationS < 0.5) return; // appui trop court : rien à garder
+      const id = newId();
+      const file = new File(uri.startsWith('file://') ? uri : `file://${uri}`);
+      const target = new File(voiceDirectory(), `${id}.m4a`);
+      file.move(target);
+      onRecorded({ id, localUri: target.uri, durationS: Math.min(durationS, MAX_VOICE_SECONDS) });
+    } catch (error) {
+      // Android refuse d'arrêter un enregistrement vide (« stop failed ») : rien à garder.
+      reportHandledError(error, 'voice_stop');
+    } finally {
+      phase.current = 'idle';
+    }
   }
 
   useEffect(() => {

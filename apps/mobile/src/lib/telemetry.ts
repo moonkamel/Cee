@@ -133,18 +133,75 @@ type ErrorUtilsLike = {
 };
 
 let started = false;
+let release: string | null = null;
+
+function errorReport(error: unknown) {
+  const e = error as { message?: string; stack?: string } | null;
+  return { message: String(e?.message ?? error), stack: e?.stack ?? null };
+}
+
+const reported = new Set<string>();
+/**
+ * Erreur rattrapée mais utile à connaître (micro, envoi d'un fichier…) : vers Sentry, une fois
+ * par lieu et par message et par lancement, pour ne pas inonder le suivi.
+ */
+export function reportHandledError(error: unknown, where: string): void {
+  const { message, stack } = errorReport(error);
+  const key = `${where}:${message}`;
+  if (__DEV__) console.warn(`[${where}]`, message);
+  if (reported.has(key)) return;
+  reported.add(key);
+  void reportError(SENTRY_DSN, {
+    message,
+    stack,
+    platform: 'javascript',
+    release,
+    userId,
+    tags: { app: 'mobile', where, handled: 'true' },
+  });
+}
+
+type RejectionTracker = {
+  enablePromiseRejectionTracker?: (options: {
+    allRejections: boolean;
+    onUnhandled: (id: number, error: unknown) => void;
+    onHandled: (id: number) => void;
+  }) => void;
+};
+
+/** Promesses rejetées sans « catch » : Sentry ne les voit pas par ErrorUtils. */
+function trackRejections(): void {
+  const hermes = (globalThis as { HermesInternal?: RejectionTracker }).HermesInternal;
+  hermes?.enablePromiseRejectionTracker?.({
+    allRejections: true,
+    onUnhandled: (id, error) => {
+      const { message, stack } = errorReport(error);
+      // En développement, l'alerte reste visible à l'écran.
+      if (__DEV__) console.warn(`Promesse rejetée (id: ${id}) : ${message}`);
+      void reportError(SENTRY_DSN, {
+        message,
+        stack,
+        platform: 'javascript',
+        release,
+        userId,
+        tags: { app: 'mobile', unhandled_rejection: 'true' },
+      });
+    },
+    onHandled: () => undefined,
+  });
+}
 
 /** Erreurs non rattrapées vers Sentry, envoi des événements toutes les 30 s et en arrière-plan. */
-export function startTelemetry(release: string | null = null): () => void {
+export function startTelemetry(appRelease: string | null = null): () => void {
   if (started) return () => undefined;
   started = true;
+  release = appRelease;
+  trackRejections();
   const utils = (globalThis as { ErrorUtils?: ErrorUtilsLike }).ErrorUtils;
   const previous = utils?.getGlobalHandler();
   utils?.setGlobalHandler((error, isFatal) => {
-    const e = error as { message?: string; stack?: string } | null;
     void reportError(SENTRY_DSN, {
-      message: String(e?.message ?? error),
-      stack: e?.stack ?? null,
+      ...errorReport(error),
       platform: 'javascript',
       release,
       userId,

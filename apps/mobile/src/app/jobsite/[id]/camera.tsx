@@ -333,8 +333,7 @@ export default function CameraScreen() {
               void voice.start();
             }}
             onPressOut={() => {
-              if (!voice.recording) return;
-              void haptics.recordEdge();
+              if (voice.recording) void haptics.recordEdge();
               void voice.stop();
             }}
             style={{
