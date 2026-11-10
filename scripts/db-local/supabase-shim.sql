@@ -55,10 +55,11 @@ create table auth.identities (
 );
 
 create function auth.uid() returns uuid language sql stable as $$
-  select nullif(coalesce(
-    current_setting('request.jwt.claim.sub', true),
+  -- Même forme que Supabase : un réglage vide vaut absent.
+  select coalesce(
+    nullif(current_setting('request.jwt.claim.sub', true), ''),
     nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'
-  ), '')::uuid
+  )::uuid
 $$;
 
 create function auth.role() returns text language sql stable as $$
