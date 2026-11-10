@@ -198,3 +198,24 @@ begin
   where j.id = v_link.jobsite_id;
   return v_out;
 end $$;
+
+-- Chantier de démonstration : la date de réception d'une photo est figée ; la finalisation ne
+-- la touche plus (elle échouait hors de la transaction de création).
+create or replace function public.finish_demo_jobsite(p_jobsite uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_saved text[];
+begin
+  if not exists (select 1 from public.jobsites
+                 where id = p_jobsite and is_demo and company_id = app.current_company_id())
+     or not app.has_role('admin', 'owner') then
+    raise exception 'Chantier de démonstration introuvable' using errcode = '42501';
+  end if;
+  v_saved := app.act_as_server();
+  update public.photos set upload_status = 'verified', ai_status = 'done'
+  where jobsite_id = p_jobsite and upload_status <> 'verified';
+  update public.proof_slots s set status = 'compliant'
+  where s.jobsite_id = p_jobsite and s.status in ('missing', 'captured', 'analyzing')
+    and exists (select 1 from public.photos p where p.proof_slot_id = s.id and p.deleted_at is null);
+  perform app.act_as_user(v_saved);
+end $$;

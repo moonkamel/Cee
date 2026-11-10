@@ -10,3 +10,9 @@ CLAUDE.md
 **/AGENTS.md
 apps/web/next-env.d.ts
 apps/mobile/expo-env.d.ts
+
+# Rapports générés (Lighthouse, Playwright)
+**/.lighthouseci
+**/test-results
+**/playwright-report
+**/e2e/.auth

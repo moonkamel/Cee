@@ -74,5 +74,6 @@ chef d'équipe `+33 6 39 98 00 02`, poseur `+33 6 39 98 00 03`.
 | S16     | Page client et PV                  | Terminée |
 | S17     | Recyclage marketing                | Terminée |
 | S18     | Inscription et abonnements         | Terminée |
+| S19     | Finitions avant pilote             | Terminée |
 
 Le plan complet (19 sessions, 5 phases) est dans la section 18 du cahier des charges.

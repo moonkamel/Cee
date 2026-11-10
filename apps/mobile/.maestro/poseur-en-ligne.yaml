@@ -1,0 +1,25 @@
+# Parcours complet du poseur, en ligne : connexion, chantier, photos guidées, fin de chantier.
+appId: fr.preuvio.app
+---
+- runFlow: connexion.yaml
+- assertVisible: '14 Rue des Ajoncs'
+- tapOn:
+    text: 'Commencer'
+    below: '14 Rue des Ajoncs'
+- assertVisible: 'Questions rapides'
+- tapOn:
+    text: 'Commencer'
+    index: 0
+- assertVisible: 'Photo 1 sur .*'
+- repeat:
+    times: 3
+    commands:
+      - tapOn: 'Prendre la photo'
+      - waitForAnimationToEnd
+- tapOn: 'Terminer'
+- assertVisible: '.*preuves sur.*'
+- back
+- back
+- extendedWaitUntil:
+    visible: 'À jour'
+    timeout: 60000

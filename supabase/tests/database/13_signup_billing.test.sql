@@ -50,9 +50,10 @@ insert into public.proof_slots (id, company_id, jobsite_id, operation_id, item_k
 select 'd1700000-0000-4000-8000-000000000001', company_id, id, 'd1600000-0000-4000-8000-000000000001',
        'facade', 'Façade', 'avant'
 from public.jobsites where is_demo;
-insert into public.photos (company_id, jobsite_id, proof_slot_id, author_id, device_taken_at, sha256, original_path)
+insert into public.photos (company_id, jobsite_id, proof_slot_id, author_id, device_taken_at, sha256, original_path,
+                           server_received_at)
 select company_id, id, 'd1700000-0000-4000-8000-000000000001', 'd1100000-0000-4000-8000-000000000001', now(),
-       repeat('a', 64), company_id || '/demo/facade.jpg'
+       repeat('a', 64), company_id || '/demo/facade.jpg', now() - interval '1 minute'
 from public.jobsites where is_demo;
 select lives_ok($$select public.finish_demo_jobsite('d1400000-0000-4000-8000-000000000099')$$,
   'photos d''exemple finalisées');

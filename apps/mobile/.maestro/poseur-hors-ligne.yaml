@@ -1,0 +1,24 @@
+# Parcours du poseur en mode avion : rien ne bloque, aucune photo perdue au retour du réseau.
+appId: fr.preuvio.app
+---
+- runFlow: connexion.yaml
+- setAirplaneMode: enabled
+- tapOn:
+    text: 'Commencer'
+    below: '14 Rue des Ajoncs'
+- tapOn:
+    text: 'Commencer'
+    index: 0
+- repeat:
+    times: 3
+    commands:
+      - tapOn: 'Prendre la photo'
+      - waitForAnimationToEnd
+- tapOn: 'Terminer'
+- back
+- back
+- assertVisible: '.*en attente d’envoi.*'
+- setAirplaneMode: disabled
+- extendedWaitUntil:
+    notVisible: '.*en attente d’envoi.*'
+    timeout: 120000

@@ -839,3 +839,33 @@ describe('demande de reprise du bureau (S12)', () => {
     expect(data.listPhotoRequests).toHaveBeenCalledWith('j1');
   });
 });
+
+// --- Accessibilité (sections 1 et 17) -----------------------------------------------------------
+describe('accessibilité des écrans du poseur', () => {
+  const flat = (style: unknown): Record<string, unknown> =>
+    Array.isArray(style)
+      ? Object.assign({}, ...style.map(flat))
+      : style && typeof style === 'object'
+        ? (style as Record<string, unknown>)
+        : {};
+  const textOf = (node: { children?: unknown[]; props?: { children?: unknown } }): string =>
+    (node.children ?? []).map((c) => (typeof c === 'string' ? c : textOf(c as never))).join('');
+
+  it.each(['/', '/me', '/jobsites'])(
+    '%s : chaque bouton a un nom et une taille de toucher suffisante',
+    async (url) => {
+      signedInUser = 'u-poseur';
+      jobsites.data = [jobsite({ id: 'j1', address: '8 allée des Tilleuls, Bron' })];
+      await renderRouter(routes, { initialUrl: url });
+      await waitFor(() => expect(screen.queryAllByRole('button').length).toBeGreaterThan(0));
+      for (const button of screen.queryAllByRole('button')) {
+        const name = button.props.accessibilityLabel ?? textOf(button as never);
+        expect(String(name).trim()).not.toBe('');
+        const style = flat(button.props.style);
+        const size = Math.max(Number(style.minHeight ?? 0), Number(style.height ?? 0));
+        // Les onglets du bas sont dimensionnés par la barre de navigation elle-même.
+        if (size > 0) expect(size).toBeGreaterThanOrEqual(48);
+      }
+    },
+  );
+});

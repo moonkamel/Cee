@@ -1,0 +1,14 @@
+# Sous-parcours : connexion de Jean Poseur (données de démo locales).
+appId: fr.preuvio.app
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Commencer'
+- tapOn:
+    id: 'phone-input'
+- inputText: '0639980003'
+- tapOn: 'Recevoir le code'
+- inputText: '123456'
+- extendedWaitUntil:
+    visible: "Aujourd'hui"
+    timeout: 20000

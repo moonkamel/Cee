@@ -82,3 +82,56 @@ jobs:
           export REQUIRE_SUPABASE=1
           test -n "$SUPABASE_ANON_KEY" || { echo "Clé publique introuvable dans supabase status"; exit 1; }
           pnpm --filter @preuvio/shared exec vitest run src/sync/supabase.integration.test.ts src/upload/supabase.integration.test.ts src/ai/supabase.integration.test.ts src/ai/voice.integration.test.ts src/office/decision.integration.test.ts
+
+  e2e:
+    name: Parcours de bout en bout, accessibilité et Lighthouse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Auth (codes SMS de test), Storage et Edge Functions (page client, PV) sont nécessaires.
+      - name: Démarrer Supabase (migrations + seed)
+        run: supabase start -x studio,imgproxy,realtime,logflare,vector,supavisor,mailpit,postgres-meta
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Construire et lancer le tableau de bord
+        run: |
+          eval "$(supabase status -o env)"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="${PUBLISHABLE_KEY:-$ANON_KEY}"
+          pnpm --filter @preuvio/web build
+          nohup pnpm --filter @preuvio/web start > web.log 2>&1 &
+          npx wait-on -t 60000 http://localhost:3000/connexion
+
+      - name: Navigateur Playwright
+        run: pnpm --filter @preuvio/web exec playwright install --with-deps chromium
+
+      - name: Parcours web (Playwright + axe)
+        run: |
+          eval "$(supabase status -o env)"
+          E2E_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-$SECRET_KEY}" E2E_SUPABASE_URL="$API_URL" \
+            pnpm --filter @preuvio/web e2e
+
+      - name: Lighthouse (performance et accessibilité > 90)
+        working-directory: apps/web
+        run: npx --yes @lhci/cli@0.15.1 autorun --config=lighthouserc.json
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-rapport
+          path: |
+            apps/web/playwright-report
+            web.log

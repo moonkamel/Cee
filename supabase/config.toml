@@ -297,12 +297,14 @@ secrets = "env(SEND_SMS_HOOK_SECRETS)"
 # uri = "pg-functions://<database>/<schema>/<hook_name>"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
+# Faux identifiants : seuls les numéros de test ([auth.sms.test_otp]) reçoivent un code, sans
+# envoi réel. Ils activent la connexion par SMS en local et en CI (parcours de bout en bout).
 [auth.sms.twilio]
-enabled = false
-account_sid = ""
-message_service_sid = ""
+enabled = true
+account_sid = "ACpreuviolocal"
+message_service_sid = "MGpreuviolocal"
 # DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
-auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
+auth_token = "local"
 
 # Multi-factor-authentication is available to Supabase Pro plan.
 [auth.mfa]
