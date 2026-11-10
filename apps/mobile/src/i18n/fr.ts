@@ -64,7 +64,7 @@ export const fr = {
   'sync.upToDate': 'À jour',
   'sync.photosWaiting': '{count} photos en attente d’envoi',
   'sync.photosWaitingOne': '1 photo en attente d’envoi',
-  'sync.pausedBattery': 'Batterie faible : envoi en pause',
+  'sync.pausedBattery': 'Batterie faible : branchez pour envoyer',
   'sync.pausedWifi': 'Envoi au prochain Wi-Fi',
   'toggle.on': 'Oui',
   'toggle.off': 'Non',

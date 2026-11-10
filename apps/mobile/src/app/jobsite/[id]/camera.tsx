@@ -38,6 +38,7 @@ import {
 import { processPhotoFile } from '@/lib/photo-pipeline';
 import { checkPhotoQuality } from '@/lib/photo-quality';
 import { useVoiceRecorder } from '@/lib/voice';
+import { SyncIndicator } from '@/components/SyncIndicator';
 import type { QualityIssue } from '@preuvio/shared';
 import { useTheme } from '@/theme/theme';
 import { cameraColors as cam } from '@preuvio/ui-tokens';
@@ -272,6 +273,7 @@ export default function CameraScreen() {
             <AppText variant="button">
               {current ? current.instruction : t('camera.freeHint')}
             </AppText>
+            <SyncIndicator problemsOnly />
           </View>
           {current ? (
             <Pressable

@@ -21,6 +21,7 @@ import { useVoiceNotes } from '@/data/use-voice-notes';
 import { VoiceNoteButton } from '@/components/VoiceNoteButton';
 import { VoiceNotesList } from '@/components/VoiceNotesList';
 import { PhotoRequestBanners } from '@/components/PhotoRequestBanners';
+import { SyncIndicator } from '@/components/SyncIndicator';
 import { useProofs } from '@/data/use-proofs';
 import { t } from '@/i18n/fr';
 import { pickFromGallery } from '@/lib/gallery';
@@ -87,6 +88,7 @@ export default function JobsiteScreen() {
           ) : null}
           {jobsite.clientName ? <AppText color="text-muted">{jobsite.clientName}</AppText> : null}
           {describeWork(jobsite) ? <AppText>{describeWork(jobsite)}</AppText> : null}
+          <SyncIndicator />
         </View>
       ) : null}
 

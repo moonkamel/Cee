@@ -336,7 +336,9 @@ describe('écran « Aujourd’hui »', () => {
     syncStatus = { ...IDLE, photosWaiting: 2, uploadBlocked: 'battery' };
     await renderRouter(routes, { initialUrl: '/' });
     expect(
-      await screen.findByText('2 photos en attente d’envoi · Batterie faible : envoi en pause'),
+      await screen.findByText(
+        '2 photos en attente d’envoi · Batterie faible : branchez pour envoyer',
+      ),
     ).toBeTruthy();
   });
 

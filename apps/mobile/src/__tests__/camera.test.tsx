@@ -433,3 +433,22 @@ describe('note vocale depuis la caméra (S11)', () => {
     );
   });
 });
+
+describe('envoi en pause (S19)', () => {
+  it('la caméra signale la batterie faible et dit quoi faire', async () => {
+    jest.mocked(data.syncStatus).mockResolvedValue({
+      pending: 2,
+      rejected: 0,
+      lastSyncAt: null,
+      offline: false,
+      photosWaiting: 3,
+      uploadBlocked: 'battery',
+    });
+    await renderRouter(routes, { initialUrl: '/jobsite/j1/camera' });
+    expect(
+      await screen.findByText(
+        '3 photos en attente d’envoi · Batterie faible : branchez pour envoyer',
+      ),
+    ).toBeTruthy();
+  });
+});
