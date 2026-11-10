@@ -1,10 +1,12 @@
 import {
+  orderWorkTypes,
   WORK_TYPES,
   pendingAddressLabel,
   type AddressSuggestion,
   type WorkType,
 } from '@preuvio/shared';
 import { router } from 'expo-router';
+import { useAuth } from '@/auth/auth';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { BigInput } from '@/components/BigInput';
@@ -36,6 +38,16 @@ type Address = NewJobsite['address'];
 
 export default function NewJobsiteScreen() {
   const data = useData();
+  const { userId } = useAuth();
+  const [ownWork, setOwnWork] = useState<WorkType[]>([]);
+  useEffect(() => {
+    if (userId) {
+      void data
+        .getProfile(userId)
+        .then((p) => setOwnWork((p?.workTypes ?? []) as WorkType[]))
+        .catch(() => undefined);
+    }
+  }, [data, userId]);
   const { spacing } = useTheme();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [address, setAddress] = useState<Address | null>(null);
@@ -96,7 +108,7 @@ export default function NewJobsiteScreen() {
             accessibilityRole="list"
             style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}
           >
-            {WORK_TYPES.map((w) => (
+            {orderWorkTypes(WORK_TYPES, ownWork).map((w) => (
               <WorkTile
                 key={w}
                 type={w}

@@ -5,6 +5,7 @@ import {
   exportChecks,
   isIncomplete,
   manifestJson,
+  jobsitesCsv,
   metadataCsv,
   namePhotos,
   pieceFileName,
@@ -208,5 +209,44 @@ describe('fichiers du ZIP', () => {
   it('nom des pièces', () => {
     expect(pieceFileName('devis', 1, 'Devis signé.PDF')).toBe('devis_1.pdf');
     expect(pieceFileName('autre', 2, 'sans-extension')).toBe('autre_2.pdf');
+  });
+});
+
+describe('liste des chantiers (export complet)', () => {
+  it('une ligne par chantier, client et opérations', () => {
+    const csv = jobsitesCsv([
+      {
+        reference: 'CH-2026-003',
+        address: '14 Rue des Ajoncs 44400 Rezé',
+        status: 'exported',
+        planned_start: '2026-11-09',
+        planned_end: '2026-11-11',
+        quote_reference: null,
+        created_at: '2026-11-08T10:00:00Z',
+        clients: { full_name: 'M. et Mme Guérin', phone: '+33639980110', email: null },
+        jobsite_operations: [{ code: 'BAR-TH-171' }, { code: 'BAR-EN-101' }],
+        photos: [{ id: 'a' }, { id: 'b' }],
+      },
+      {
+        reference: null,
+        address: 'Lieu-dit; "Le Bourg"',
+        status: 'planned',
+        planned_start: null,
+        planned_end: null,
+        quote_reference: 'DEV-1',
+        created_at: '2026-11-09T10:00:00Z',
+        clients: null,
+        jobsite_operations: null,
+        photos: null,
+      },
+    ]);
+    const lines = csv.split('\r\n');
+    expect(lines[0]).toBe(
+      '\uFEFFreference;adresse;statut;debut_prevu;fin_prevue;devis;cree_le;client;telephone;email;operations;photos',
+    );
+    expect(lines[1]).toBe(
+      'CH-2026-003;14 Rue des Ajoncs 44400 Rezé;exported;2026-11-09;2026-11-11;;2026-11-08;M. et Mme Guérin;+33639980110;;BAR-TH-171 BAR-EN-101;2',
+    );
+    expect(lines[2]).toBe(';"Lieu-dit; ""Le Bourg""";planned;;;DEV-1;2026-11-09;;;;;0');
   });
 });

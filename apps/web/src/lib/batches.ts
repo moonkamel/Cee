@@ -105,6 +105,7 @@ export async function loadBatch(id: string) {
     supabase
       .from('jobsites')
       .select(JOBSITE_SELECT)
+      .eq('is_demo', false)
       .order('planned_end', { ascending: false })
       .returns<BatchJobsite[]>(),
   ]);

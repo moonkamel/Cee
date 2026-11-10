@@ -114,6 +114,29 @@ export function companyAccess(input: AccessInput): Access {
   return readOnly(Math.min(trialEnd, now), 'trial_ended');
 }
 
+/** Réponse de my_company_access (SQL, fait foi pour les limites) → Access de packages/shared. */
+export function accessFromSql(row: unknown): Access {
+  const r = (row ?? {}) as Record<string, unknown>;
+  switch (r.kind) {
+    case 'trial':
+      return {
+        kind: 'trial',
+        daysLeft: Number(r.days_left),
+        jobsitesLeft: Number(r.jobsites_left),
+      };
+    case 'active':
+      return isPlan(r.plan) ? { kind: 'active', plan: r.plan } : { kind: 'closed' };
+    case 'read_only':
+      return {
+        kind: 'read_only',
+        reason: r.reason === 'canceled' ? 'canceled' : 'trial_ended',
+        until: new Date(String(r.until)).toISOString(),
+      };
+    default:
+      return { kind: 'closed' };
+  }
+}
+
 /** Créer un chantier, inviter : seulement pendant l'essai ou avec un abonnement. */
 export function canWrite(access: Access): boolean {
   return access.kind === 'trial' || access.kind === 'active';

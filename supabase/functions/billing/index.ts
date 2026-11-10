@@ -19,7 +19,10 @@ import { corsHeaders, json } from '../_shared/http.ts';
 const STRIPE = 'https://api.stripe.com/v1';
 const WEB_URL = Deno.env.get('WEB_URL') ?? 'https://preuvio-web.vercel.app';
 
-async function stripe(path: string, init: { method?: string; body?: Record<string, unknown> } = {}) {
+async function stripe(
+  path: string,
+  init: { method?: string; body?: Record<string, unknown> } = {},
+) {
   const res = await fetch(`${STRIPE}${path}`, {
     method: init.method ?? (init.body ? 'POST' : 'GET'),
     headers: {
@@ -36,7 +39,8 @@ async function stripe(path: string, init: { method?: string; body?: Record<strin
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json(405, { error: 'Méthode non autorisée' });
-  if (!Deno.env.get('STRIPE_SECRET_KEY')) return json(503, { error: 'Paiement pas encore configuré' });
+  if (!Deno.env.get('STRIPE_SECRET_KEY'))
+    return json(503, { error: 'Paiement pas encore configuré' });
 
   const url = Deno.env.get('SUPABASE_URL')!;
   const asCaller = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {

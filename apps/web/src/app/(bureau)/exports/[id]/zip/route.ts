@@ -1,5 +1,6 @@
 // ZIP d'un export (section 11). POST : fabrication (un chantier par appel, pour rester dans la
-// durée d'une fonction) ; GET : téléchargement par lien signé de 10 minutes.
+// durée d'une fonction) ; GET : téléchargement par lien signé de 10 minutes (un export complet
+// est fabriqué au premier téléchargement).
 import { permissions } from '@preuvio/shared';
 import { currentUser } from '@/lib/dal';
 import { buildExport } from '@/lib/exports/build';
@@ -24,11 +25,15 @@ export async function GET(_: Request, ctx: RouteContext<'/exports/[id]/zip'>) {
   if (!(await allowed())) return new Response('Accès réservé', { status: 403 });
   const { id } = await ctx.params;
   const supabase = await supabaseServer();
-  const { data: exp } = await supabase
-    .from('exports')
-    .select('zip_path, jobsite_ids')
-    .eq('id', id)
-    .maybeSingle();
+  const read = () =>
+    supabase.from('exports').select('zip_path, jobsite_ids, purpose').eq('id', id).maybeSingle();
+  let { data: exp } = await read();
+  // Export complet (section 15) : le dossier est fabriqué au premier téléchargement.
+  if (exp && !exp.zip_path && exp.purpose === 'archive') {
+    const built = await buildExport(id);
+    if (!built.ok) return new Response(built.error ?? 'Export impossible', { status: 500 });
+    ({ data: exp } = await read());
+  }
   if (!exp?.zip_path) return new Response('Export pas encore prêt', { status: 404 });
   const { data: jobsite } = await supabase
     .from('jobsites')

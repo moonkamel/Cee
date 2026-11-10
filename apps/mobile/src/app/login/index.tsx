@@ -1,13 +1,14 @@
 import { normalizeFrenchPhone } from '@preuvio/shared';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 import { useAuth } from '@/auth/auth';
 import { BigInput } from '@/components/BigInput';
 import { Screen } from '@/components/Screen';
 import { AppText, BigButton } from '@/components/ui';
 import { t } from '@/i18n/fr';
 import { haptics } from '@/lib/haptics';
+import { webUrl } from '@/lib/web-url';
 import { useTheme } from '@/theme/theme';
 
 // Connexion, écran 2 sur 3. Le lien d'invitation (preuvio://login?phone=…) pré-remplit le numéro.
@@ -71,6 +72,13 @@ export default function LoginPhone() {
         accessibilityHint={phone ? undefined : t('login.phone.invalid')}
         onPress={() => void submit()}
       />
+      <Pressable
+        accessibilityRole="link"
+        onPress={() => void Linking.openURL(`${webUrl}/inscription`)}
+        style={{ minHeight: 48, justifyContent: 'center' }}
+      >
+        <AppText color="brand">{t('login.phone.signup')}</AppText>
+      </Pressable>
     </Screen>
   );
 }

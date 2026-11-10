@@ -43,6 +43,7 @@ export async function loadCandidates(delegataire: Delegataire | null): Promise<C
          jobsite_documents ( kind, document_date, deleted_at ),
          photos ( device_taken_at, deleted_at )`,
       )
+      .eq('is_demo', false)
       .in('status', [
         'in_progress',
         'completed_by_installer',
@@ -109,6 +110,7 @@ export async function loadExports(
     .select(
       'id, batch_id, status, incomplete, checks, error, zip_size, sent_to, sent_at, link_expires_at, created_at, jobsite_ids, delegataires ( name )',
     )
+    .eq('purpose', 'delegataire')
     .order('created_at', { ascending: false })
     .limit(limit)
     .returns<ExportRow[]>();

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { LoginForm } from './LoginForm';
 
 export const metadata = { title: 'Connexion · Preuvio' };
@@ -10,6 +11,7 @@ export default function LoginPage() {
         <p className="text-text-muted">Tableau de bord du bureau et du dirigeant.</p>
       </div>
       <LoginForm />
+      <Link href="/inscription">Pas encore de compte ? Créer mon entreprise</Link>
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import { batchStatus, formatParis, permissions } from '@preuvio/shared';
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { FeatureGate } from '@/components/FeatureGate';
 import { CreateBatchForm } from '@/components/BatchForms';
 import { currentThreshold, loadBatches } from '@/lib/batches';
 import { currentUser } from '@/lib/dal';
@@ -77,7 +78,9 @@ export default function BatchesPage() {
         Indicateur interne : il ne remplace ni le contrôle officiel ni le calcul du délégataire.
       </p>
       <Suspense fallback={<p className="text-text-muted">Chargement…</p>}>
-        <Batches />
+        <FeatureGate feature="batches">
+          <Batches />
+        </FeatureGate>
       </Suspense>
     </>
   );

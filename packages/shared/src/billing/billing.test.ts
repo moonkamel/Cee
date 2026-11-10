@@ -179,3 +179,26 @@ describe('métiers exercés', () => {
     ]);
   });
 });
+
+describe('accès lu en base', () => {
+  it('réponse de my_company_access → Access', async () => {
+    const { accessFromSql } = await import('.');
+    expect(accessFromSql({ kind: 'trial', days_left: 3, jobsites_left: 2 })).toEqual({
+      kind: 'trial',
+      daysLeft: 3,
+      jobsitesLeft: 2,
+    });
+    expect(accessFromSql({ kind: 'active', plan: 'team' })).toEqual({
+      kind: 'active',
+      plan: 'team',
+    });
+    expect(accessFromSql({ kind: 'active', plan: 'x' })).toEqual({ kind: 'closed' });
+    expect(
+      accessFromSql({ kind: 'read_only', reason: 'canceled', until: '2027-01-01T00:00:00+00:00' }),
+    ).toEqual({ kind: 'read_only', reason: 'canceled', until: '2027-01-01T00:00:00.000Z' });
+    expect(accessFromSql({ kind: 'read_only', until: '2027-01-01T00:00:00Z' })).toMatchObject({
+      reason: 'trial_ended',
+    });
+    expect(accessFromSql(null)).toEqual({ kind: 'closed' });
+  });
+});

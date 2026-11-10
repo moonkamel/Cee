@@ -311,3 +311,53 @@ export function pieceFileName(kind: string, index: number, originalName: string)
   const ext = /\.([A-Za-z0-9]{1,5})$/.exec(originalName)?.[1]?.toLowerCase() ?? 'pdf';
   return `${safeFilePart(kind)}_${index}.${ext}`;
 }
+
+export type JobsiteCsvRow = {
+  reference: string | null;
+  address: string;
+  status: string;
+  planned_start: string | null;
+  planned_end: string | null;
+  quote_reference: string | null;
+  created_at: string;
+  clients: { full_name: string; phone: string | null; email: string | null } | null;
+  jobsite_operations: { code: string }[] | null;
+  photos: { id: string }[] | null;
+};
+
+/** chantiers.csv de l'export complet (section 15) : un chantier par ligne. */
+export function jobsitesCsv(rows: readonly JobsiteCsvRow[]): string {
+  const header = [
+    'reference',
+    'adresse',
+    'statut',
+    'debut_prevu',
+    'fin_prevue',
+    'devis',
+    'cree_le',
+    'client',
+    'telephone',
+    'email',
+    'operations',
+    'photos',
+  ];
+  const lines = rows.map((r) =>
+    [
+      r.reference ?? '',
+      r.address,
+      r.status,
+      r.planned_start ?? '',
+      r.planned_end ?? '',
+      r.quote_reference ?? '',
+      r.created_at.slice(0, 10),
+      r.clients?.full_name ?? '',
+      r.clients?.phone ?? '',
+      r.clients?.email ?? '',
+      (r.jobsite_operations ?? []).map((o) => o.code).join(' '),
+      String((r.photos ?? []).length),
+    ]
+      .map(csvCell)
+      .join(';'),
+  );
+  return `\uFEFF${[header.join(';'), ...lines].join('\r\n')}\r\n`;
+}

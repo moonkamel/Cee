@@ -44,6 +44,7 @@ export const fr = {
   'login.phone.submit': 'Recevoir le code',
   'login.phone.invalid': 'Numéro incomplet',
   'login.phone.error': 'Numéro inconnu ou pas de réseau. Réessayez.',
+  'login.phone.signup': 'Créer mon entreprise',
   'login.code.title': 'Code reçu par SMS',
   'login.code.sentTo': 'Envoyé au {phone}',
   'login.code.label': 'Code à 6 chiffres',

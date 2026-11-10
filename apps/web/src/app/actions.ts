@@ -16,6 +16,7 @@ import {
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/dal';
+import { inviteErrorMessage } from '@/lib/onboarding/invite';
 import { loadReport } from '@/lib/reports';
 import { supabaseServer } from '@/lib/supabase/server';
 
@@ -112,7 +113,7 @@ export async function inviteMember(_: FormState, form: FormData): Promise<FormSt
   const { error } = await supabase.functions.invoke('invite-member', {
     body: { phone, full_name: fullName, role },
   });
-  if (error) return { error: 'Invitation refusée (numéro déjà inscrit ou droits insuffisants)' };
+  if (error) return { error: await inviteErrorMessage(error) };
   revalidatePath('/equipe');
   return { ok: true };
 }

@@ -71,13 +71,14 @@ export async function buildExport(exportId: string): Promise<{ ok: boolean; erro
   const supabase = await supabaseServer();
   const { data: exp } = await supabase
     .from('exports')
-    .select('id, company_id, jobsite_ids, zip_path, delegataires ( name, naming_pattern )')
+    .select('id, company_id, jobsite_ids, zip_path, purpose, delegataires ( name, naming_pattern )')
     .eq('id', exportId)
     .maybeSingle<{
       id: string;
       company_id: string;
       jobsite_ids: string[];
       zip_path: string | null;
+      purpose?: string;
       delegataires: { name: string; naming_pattern: string } | null;
     }>();
   if (!exp) return { ok: false, error: 'Export introuvable' };
@@ -308,7 +309,9 @@ export async function buildExport(exportId: string): Promise<{ ok: boolean; erro
       })
       .eq('id', exp.id);
     if (error) return fail(`Export non mis à jour : ${error.message}`);
-    // Le chantier passe à « exporté » (section 5), sauf s'il est déjà contrôlé.
+    // Le chantier passe à « exporté » (section 5), sauf s'il est déjà contrôlé ; une archive
+    // (export complet avant résiliation, section 15) ne change rien au chantier.
+    if (exp.purpose === 'archive') return { ok: true };
     await supabase
       .from('jobsites')
       .update({ status: 'exported' })

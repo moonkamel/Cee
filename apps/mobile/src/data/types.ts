@@ -125,7 +125,14 @@ export type RecordPhotoInput = {
   localCheck?: LocalCheck | null;
 };
 
-export type Profile = { id: string; fullName: string; role: Role; companyName: string | null };
+export type Profile = {
+  id: string;
+  fullName: string;
+  role: Role;
+  companyName: string | null;
+  /** Métiers choisis à l'inscription (section 15) : en tête à la création d'un chantier. */
+  workTypes?: string[];
+};
 
 export type CachedResult<T> = {
   data: T;

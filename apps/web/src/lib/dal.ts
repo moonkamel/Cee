@@ -23,7 +23,9 @@ export async function currentUser(): Promise<CurrentUser> {
       active: boolean;
       companies: { name: string } | null;
     }>();
-  if (!profile?.active) redirect('/connexion?inactif=1');
+  // Compte confirmé sans entreprise : l'inscription continue.
+  if (!profile) redirect('/inscription/entreprise');
+  if (!profile.active) redirect('/connexion?inactif=1');
   return {
     id,
     fullName: profile.full_name,

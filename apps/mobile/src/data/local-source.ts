@@ -241,6 +241,7 @@ export function createLocalSource({
         fullName: str(profile.full_name) ?? '',
         role: profile.role as Role,
         companyName: str(company?.name),
+        workTypes: Array.isArray(company?.work_types) ? (company.work_types as string[]) : [],
       };
     },
 

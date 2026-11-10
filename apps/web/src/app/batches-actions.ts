@@ -87,7 +87,8 @@ export async function importBatch(_: ImportBatchState, form: FormData): Promise<
   const supabase = await supabaseServer();
   const { data: jobsites } = await supabase
     .from('jobsites')
-    .select('id, reference, quote_reference');
+    .select('id, reference, quote_reference')
+    .eq('is_demo', false);
   const known = jobsites ?? [];
   const col = referenceColumn(rows, known);
   const values = rows.map((r) => r[col] ?? '');

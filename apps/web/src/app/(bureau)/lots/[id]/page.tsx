@@ -8,6 +8,7 @@ import {
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
+import { FeatureGate } from '@/components/FeatureGate';
 import { addToBatch, markCorrected, removeFromBatch } from '@/app/batches-actions';
 import { CorrectionForm, ImportBatchForm, InspectionForm } from '@/components/BatchForms';
 import { type BatchJobsite, currentThreshold, loadBatch } from '@/lib/batches';
@@ -180,7 +181,9 @@ async function Batch({ params }: { params: PageProps<'/lots/[id]'>['params'] }) 
 export default function BatchPage(props: PageProps<'/lots/[id]'>) {
   return (
     <Suspense fallback={<p className="text-text-muted">Chargement…</p>}>
-      <Batch params={props.params} />
+      <FeatureGate feature="batches">
+        <Batch params={props.params} />
+      </FeatureGate>
     </Suspense>
   );
 }

@@ -1,5 +1,6 @@
 import { isTone, permissions } from '@preuvio/shared';
 import { Suspense } from 'react';
+import { FeatureGate } from '@/components/FeatureGate';
 import { MarketingReviewForm, MarketingShare } from '@/components/MarketingForms';
 import { currentUser } from '@/lib/dal';
 import { loadMarketingQueue, type MarketingRow } from '@/lib/marketing/queries';
@@ -92,7 +93,9 @@ export default function MarketingPage() {
         Vos avant/après prêts à publier : partagez-les depuis votre téléphone.
       </p>
       <Suspense fallback={<p className="text-text-muted">Chargement…</p>}>
-        <Queue />
+        <FeatureGate feature="marketing">
+          <Queue />
+        </FeatureGate>
       </Suspense>
     </>
   );
