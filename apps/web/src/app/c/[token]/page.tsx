@@ -138,7 +138,8 @@ async function Portal({ params }: { params: PageProps<'/c/[token]'>['params'] })
                   <img
                     src={url(p.thumbnail_path ?? p.original_path)}
                     alt={p.label || 'Photo du chantier'}
-                    loading="lazy"
+                    // Chargée tout de suite : le lien signé n'est valable que 5 minutes.
+                    loading="eager"
                     className="aspect-[4/3] w-full rounded-lg object-cover"
                   />
                 </a>
