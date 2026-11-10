@@ -1,6 +1,6 @@
 import { featuredJobsite, selectTodayJobsites } from '@preuvio/shared';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 import { JobsiteCard } from '@/components/JobsiteCard';
 import { Screen } from '@/components/Screen';
@@ -11,6 +11,7 @@ import { useJobsites } from '@/data/use-jobsites';
 import { t } from '@/i18n/fr';
 import { formatLongDate } from '@/lib/format';
 import { localToday, useCurrentPosition } from '@/lib/position';
+import { homeReady } from '@/lib/telemetry';
 import { useTheme } from '@/theme/theme';
 
 // Écran « Aujourd'hui » (section 6) : le chantier le plus proche en tête,
@@ -27,6 +28,9 @@ export default function Today() {
   );
   const featured = featuredJobsite(jobsites);
   const others = jobsites.filter((j) => j.id !== featured?.id);
+  useEffect(() => {
+    if (result) homeReady();
+  }, [result]);
   const open = (id: string) => router.push({ pathname: '/jobsite/[id]', params: { id } });
 
   return (

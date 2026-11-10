@@ -27,7 +27,14 @@ import { useProofs } from '@/data/use-proofs';
 import { t } from '@/i18n/fr';
 import { positionForPhoto, useHeadingRef } from '@/lib/heading';
 import { haptics } from '@/lib/haptics';
-import { cameraReady, recordPerf, recordPerfSince, track, trackOnce } from '@/lib/telemetry';
+import {
+  cameraMounting,
+  cameraReady,
+  recordPerf,
+  recordPerfSince,
+  track,
+  trackOnce,
+} from '@/lib/telemetry';
 import { processPhotoFile } from '@/lib/photo-pipeline';
 import { checkPhotoQuality } from '@/lib/photo-quality';
 import { useVoiceRecorder } from '@/lib/voice';
@@ -71,6 +78,7 @@ export default function CameraScreen() {
     if (!permission.hasPermission) void permission.requestPermission();
   }, [permission]);
   useEffect(() => trackOnce(`jobsite:${id}`, 'jobsite_started'), [id]);
+  useEffect(() => cameraMounting(), []);
 
   // Sans preuve demandée : la prochaine à prendre, ou photo libre si tout est pris.
   // Revenue de « Impossible » : la preuve dispensée laisse place à la suivante.

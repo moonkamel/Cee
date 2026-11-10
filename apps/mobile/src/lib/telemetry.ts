@@ -78,11 +78,27 @@ export function recordPerfSince(metric: PerfMetric, since: number): void {
   recordPerf(metric, Date.now() - since);
 }
 
-/** Ouverture à froid jusqu'à la caméra prête : mesurée une seule fois par lancement. */
+let homeReadyMs: number | null = null;
+let cameraMountAt: number | null = null;
+
+/** Écran « Aujourd'hui » affiché avec ses chantiers : fin du démarrage à froid. */
+export function homeReady(): void {
+  if (homeReadyMs === null) homeReadyMs = Date.now() - APP_START;
+}
+
+/** L'écran caméra s'ouvre (le temps passé par le poseur avant n'est pas compté). */
+export function cameraMounting(): void {
+  cameraMountAt = Date.now();
+}
+
+/**
+ * Ouverture à froid jusqu'à la caméra prête, une fois par lancement : démarrage jusqu'à
+ * « Aujourd'hui », plus ouverture de la caméra jusqu'à l'image (hors temps de décision).
+ */
 export function cameraReady(): void {
-  if (coldStartMeasured) return;
+  if (coldStartMeasured || homeReadyMs === null || cameraMountAt === null) return;
   coldStartMeasured = true;
-  recordPerf('cold_start_to_camera', Date.now() - APP_START);
+  recordPerf('cold_start_to_camera', homeReadyMs + (Date.now() - cameraMountAt));
 }
 
 export function recentSamples(): readonly PerfSample[] {
