@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { signOut } from '@/app/actions';
 import { AccessBanner } from '@/components/FeatureGate';
+import { LegalLinks } from '@/components/LegalLinks';
 import { currentUser } from '@/lib/dal';
 
 const ROLE: Record<string, string> = {
@@ -55,6 +56,7 @@ export default function OfficeLayout({ children }: LayoutProps<'/'>) {
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-6">
         {children}
       </main>
+      <LegalLinks />
     </div>
   );
 }

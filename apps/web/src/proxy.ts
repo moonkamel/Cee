@@ -22,7 +22,10 @@ export async function proxy(request: NextRequest) {
   const isLogin = path.startsWith('/connexion') || path === '/inscription';
   // Vérification d'un rapport (QR code) : publique, pour le client, l'assureur ou l'expert.
   // Page client (lien personnel, section 12) : publique aussi, le jeton du lien fait foi.
-  const isPublic = ['/verifier/', '/c/'].some((p) => request.nextUrl.pathname.startsWith(p));
+  // Pages légales et modèles RGPD (section 16) : publiques.
+  const isPublic =
+    ['/verifier/', '/c/', '/modeles/'].some((p) => path.startsWith(p)) ||
+    ['/mentions-legales', '/confidentialite', '/cgu', '/sous-traitants'].includes(path);
   if (!data?.claims && !isLogin && !isPublic) {
     const login = request.nextUrl.clone();
     login.pathname = '/connexion';

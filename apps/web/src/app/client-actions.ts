@@ -93,7 +93,24 @@ export async function setClientPhoto(form: FormData) {
   revalidatePath(`/chantiers/${String(form.get('jobsiteId') ?? '')}`);
 }
 
-/** Téléphone de l'entreprise, lien de sa fiche Google et ton des légendes marketing. */
+/**
+ * Droit à l'effacement du client (section 16) : la base efface ses coordonnées ; s'il a un
+ * chantier, la preuve des travaux est gardée et l'accès restreint.
+ */
+export async function eraseClient(_: FormState, form: FormData): Promise<FormState> {
+  const user = await currentUser();
+  if (!permissions(user.role).manageTeam) return { error: 'Réservé à l’admin et au dirigeant' };
+  if (form.get('confirm') !== 'on') return { error: 'Cochez la case pour confirmer' };
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc('erase_client', {
+    p_client: String(form.get('clientId') ?? ''),
+  });
+  if (error) return { error: 'Effacement refusé' };
+  revalidatePath(`/chantiers/${String(form.get('jobsiteId') ?? '')}`);
+  return { ok: true };
+}
+
+/** Téléphone de l'entreprise, lien de sa fiche Google, ton des légendes et conservation. */
 export async function saveCompanySettings(_: FormState, form: FormData): Promise<FormState> {
   const user = await currentUser();
   if (!permissions(user.role).manageTeam) return { error: 'Réservé à l’admin et au dirigeant' };
@@ -105,6 +122,9 @@ export async function saveCompanySettings(_: FormState, form: FormData): Promise
     return { error: 'Le lien Google doit commencer par https://' };
   const tone = form.get('tone');
   if (!isTone(tone)) return { error: 'Choisissez un ton' };
+  const retention = Number(form.get('retention'));
+  if (!Number.isInteger(retention) || retention < 5 || retention > 30)
+    return { error: 'Conservation : entre 5 et 30 ans' };
   const supabase = await supabaseServer();
   const { data: profile } = await supabase
     .from('profiles')
@@ -113,7 +133,12 @@ export async function saveCompanySettings(_: FormState, form: FormData): Promise
     .single();
   const { error } = await supabase
     .from('companies')
-    .update({ phone, google_review_url: review, marketing_tone: tone })
+    .update({
+      phone,
+      google_review_url: review,
+      marketing_tone: tone,
+      retention_years: retention,
+    })
     .eq('id', profile!.company_id);
   if (error) return { error: 'Réglages non enregistrés' };
   revalidatePath('/reglages');

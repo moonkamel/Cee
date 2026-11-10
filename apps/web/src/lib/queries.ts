@@ -122,7 +122,11 @@ export async function loadClientSpace(jobsiteId: string) {
       .is('deleted_at', null)
       .eq('source', 'camera')
       .order('device_taken_at'),
-    supabase.from('jobsites').select('clients ( phone )').eq('id', jobsiteId).maybeSingle(),
+    supabase
+      .from('jobsites')
+      .select('clients ( id, phone, erased_at )')
+      .eq('id', jobsiteId)
+      .maybeSingle(),
   ]);
   return {
     links: links.data ?? [],
@@ -131,5 +135,10 @@ export async function loadClientSpace(jobsiteId: string) {
     clientHasPhone: Boolean(
       (client.data?.clients as unknown as { phone: string | null } | null)?.phone,
     ),
+    client: client.data?.clients as unknown as {
+      id: string;
+      phone: string | null;
+      erased_at: string | null;
+    } | null,
   };
 }

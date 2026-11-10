@@ -15,6 +15,10 @@ export default function SignupPage() {
       </div>
       <SignupCodeForm />
       <Link href="/connexion">Déjà un compte ? Se connecter</Link>
+      <p className="text-base text-text-muted">
+        En créant un compte, vous acceptez les <Link href="/cgu">conditions générales</Link> et la{' '}
+        <Link href="/confidentialite">politique de confidentialité</Link>.
+      </p>
     </main>
   );
 }

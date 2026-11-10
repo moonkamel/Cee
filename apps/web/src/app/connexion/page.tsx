@@ -12,6 +12,10 @@ export default function LoginPage() {
       </div>
       <LoginForm />
       <Link href="/inscription">Pas encore de compte ? Créer mon entreprise</Link>
+      <p className="text-base text-text-muted">
+        <Link href="/confidentialite">Confidentialité</Link> ·{' '}
+        <Link href="/mentions-legales">Mentions légales</Link>
+      </p>
     </main>
   );
 }

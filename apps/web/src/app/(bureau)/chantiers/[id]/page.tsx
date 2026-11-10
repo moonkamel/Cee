@@ -13,7 +13,7 @@ import { Suspense } from 'react';
 import { markItemDone } from '@/app/actions';
 import { removeDocument } from '@/app/exports-actions';
 import { extendClientLink, revokeClientLink, setClientPhoto } from '@/app/client-actions';
-import { ClientLinkForm } from '@/components/ClientSpaceForms';
+import { ClientLinkForm, EraseClientForm } from '@/components/ClientSpaceForms';
 import { AnnotatedPhoto } from '@/components/AnnotatedPhoto';
 import { DocumentForm } from '@/components/ExportForms';
 import { RequestReportForm } from '@/components/ReportForms';
@@ -208,6 +208,16 @@ async function Jobsite({ params }: { params: PageProps<'/chantiers/[id]'>['param
                 ))}
               </ul>
             </div>
+          ) : null}
+          {can.manageTeam && clientSpace.client ? (
+            clientSpace.client.erased_at ? (
+              <p className="text-text-muted">
+                Coordonnées du client effacées le {formatParis(clientSpace.client.erased_at)} à sa
+                demande : accès restreint.
+              </p>
+            ) : (
+              <EraseClientForm clientId={clientSpace.client.id} jobsiteId={jobsite.id} />
+            )
           ) : null}
         </section>
       ) : null}

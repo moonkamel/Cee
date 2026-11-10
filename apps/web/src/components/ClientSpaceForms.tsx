@@ -3,7 +3,12 @@
 import { MARKETING_TONES, TONE_LABELS } from '@preuvio/shared';
 import { useActionState, useState } from 'react';
 import type { FormState } from '@/app/actions';
-import { createClientLink, type LinkState, saveCompanySettings } from '@/app/client-actions';
+import {
+  createClientLink,
+  eraseClient,
+  type LinkState,
+  saveCompanySettings,
+} from '@/app/client-actions';
 
 const field = 'min-h-12 rounded-lg border border-border bg-surface px-3';
 const primary =
@@ -67,10 +72,12 @@ export function CompanySettingsForm({
   phone,
   review,
   tone,
+  retention,
 }: {
   phone: string | null;
   review: string | null;
   tone: string;
+  retention: number;
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveCompanySettings, null);
   return (
@@ -108,6 +115,19 @@ export function CompanySettingsForm({
           Ton proposé par défaut, modifiable à chaque contenu.
         </span>
       </label>
+      <label className="flex flex-col gap-1">
+        <span className="font-bold">Conservation des chantiers et des photos</span>
+        <select name="retention" defaultValue={String(retention)} className={field}>
+          {[5, 6, 10, 15, 20, 30].map((y) => (
+            <option key={y} value={y}>
+              {y} ans{y === 10 ? ' (garantie décennale, conseillé)' : ''}
+            </option>
+          ))}
+        </select>
+        <span className="text-base text-text-muted">
+          Durées minimales CEE et Anah : à faire confirmer par votre conseil.
+        </span>
+      </label>
       <div className="flex flex-wrap items-center gap-3">
         <button disabled={pending} className={primary}>
           Enregistrer
@@ -124,5 +144,45 @@ export function CompanySettingsForm({
         ) : null}
       </div>
     </form>
+  );
+}
+
+/** Effacement des données du client, sur demande de sa part (section 16). */
+export function EraseClientForm({ clientId, jobsiteId }: { clientId: string; jobsiteId: string }) {
+  const [state, action, pending] = useActionState<FormState, FormData>(eraseClient, null);
+  if (state?.ok) {
+    return (
+      <p role="status" className="font-bold text-ok">
+        Coordonnées du client effacées ; la preuve des travaux est conservée.
+      </p>
+    );
+  }
+  return (
+    <details className="rounded-lg border border-border p-3">
+      <summary className="cursor-pointer font-bold">Demande d’effacement du client</summary>
+      <form action={action} className="mt-3 flex flex-col gap-3">
+        <input type="hidden" name="clientId" value={clientId} />
+        <input type="hidden" name="jobsiteId" value={jobsiteId} />
+        <p className="text-base text-text-muted">
+          Efface le téléphone et l’e-mail du client et révoque ses liens. Le nom, l’adresse du
+          chantier, les photos et le PV restent conservés comme preuve des travaux.
+        </p>
+        <label className="flex min-h-10 items-center gap-2">
+          <input type="checkbox" name="confirm" className="h-6 w-6" />
+          Le client a demandé l’effacement de ses données
+        </label>
+        <button
+          disabled={pending}
+          className="min-h-12 self-start rounded-xl border border-ko px-4 font-bold text-ko"
+        >
+          Effacer ses coordonnées
+        </button>
+        {state?.error ? (
+          <span role="alert" className="font-bold text-ko">
+            {state.error}
+          </span>
+        ) : null}
+      </form>
+    </details>
   );
 }

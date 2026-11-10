@@ -201,7 +201,7 @@ async function Portal({ params }: { params: PageProps<'/c/[token]'>['params'] })
 
       <footer className="pt-6 text-base text-text-muted">
         Lien personnel, valable jusqu’au {formatParis(v.link.expires_at, false)}. Ne le partagez
-        pas.
+        pas. <a href="/confidentialite">Vos données</a>
       </footer>
     </>
   );

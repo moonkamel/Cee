@@ -16,7 +16,7 @@ async function Settings() {
   const { data: company } = permissions(user.role).manageTeam
     ? await supabase
         .from('companies')
-        .select('phone, google_review_url, marketing_tone')
+        .select('phone, google_review_url, marketing_tone, retention_years')
         .maybeSingle()
     : { data: null };
   return (
@@ -33,7 +33,19 @@ async function Settings() {
             phone={company.phone}
             review={company.google_review_url}
             tone={company.marketing_tone}
+            retention={company.retention_years}
           />
+        </section>
+      ) : null}
+      {company ? (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-2xl font-bold">Données personnelles</h2>
+          <p className="text-text-muted">
+            Modèles à adapter et à remettre :{' '}
+            <a href="/modeles/note-salaries">note d’information des salariés</a> (géolocalisation au
+            moment des photos seulement) et{' '}
+            <a href="/modeles/mention-client">mention pour vos clients</a>, à intégrer à vos devis.
+          </p>
         </section>
       ) : null}
     </>
