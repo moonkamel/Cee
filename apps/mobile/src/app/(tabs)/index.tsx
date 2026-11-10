@@ -11,13 +11,15 @@ import { useJobsites } from '@/data/use-jobsites';
 import { t } from '@/i18n/fr';
 import { formatLongDate } from '@/lib/format';
 import { localToday, useCurrentPosition } from '@/lib/position';
+import { useFirstJobsiteHint } from '@/lib/first-launch';
 import { homeReady } from '@/lib/telemetry';
 import { useTheme } from '@/theme/theme';
 
 // Écran « Aujourd'hui » (section 6) : le chantier le plus proche en tête,
 // celui où se trouve le poseur en plein écran avec un bouton géant « Commencer ».
 export default function Today() {
-  const { spacing } = useTheme();
+  const { spacing, colors } = useTheme();
+  const hint = useFirstJobsiteHint();
   const { result, failed, refresh } = useJobsites();
   const position = useCurrentPosition();
 
@@ -46,6 +48,22 @@ export default function Today() {
       </View>
 
       <PhotoRequestBanners showAddress />
+
+      {hint.show && jobsites.length > 0 ? (
+        <View
+          accessibilityLiveRegion="polite"
+          style={{
+            gap: spacing.sm,
+            padding: spacing.md,
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: colors.brand,
+          }}
+        >
+          <AppText style={{ fontWeight: '700' }}>{t('today.firstHint')}</AppText>
+          <BigButton label={t('today.firstHintOk')} variant="secondary" onPress={hint.dismiss} />
+        </View>
+      ) : null}
 
       {!result && !failed ? <AppText color="text-muted">{t('today.loading')}</AppText> : null}
 

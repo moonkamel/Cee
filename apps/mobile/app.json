@@ -59,6 +59,12 @@
           "cameraPermission": false,
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Preuvio utilise le micro pour dicter vos notes de chantier."
+        }
       ]
     ],
     "experiments": {
