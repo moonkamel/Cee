@@ -10,12 +10,13 @@
 //   send_link  (bureau connecté) envoi du lien au client par SMS
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
-import { brevoConfigured, sendEmail, sendSms } from '../_shared/brevo.ts';
+import { brevoConfigured, sendEmail, sendSms, smsQuotaTake } from '../_shared/brevo.ts';
 import { canonicalJson, newSmsCode, pvContent } from '../_shared/client/index.ts';
 import { corsHeaders, json } from '../_shared/http.ts';
 import { renderPv } from './pv-pdf.ts';
 
-const URL_TTL = 3600;
+// Liens signés de 5 minutes (section 16) : la page les redemande à chaque ouverture.
+const URL_TTL = 300;
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const d = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
@@ -62,10 +63,11 @@ async function portal(db: SupabaseClient, token: string): Promise<Portal | null>
 async function clientContact(db: SupabaseClient, jobsiteId: string) {
   const { data } = await db
     .from('jobsites')
-    .select('clients ( phone, email ), companies ( name, siret )')
+    .select('company_id, clients ( phone, email ), companies ( name, siret )')
     .eq('id', jobsiteId)
     .maybeSingle();
   return data as unknown as {
+    company_id: string;
     clients: { phone: string | null; email: string | null } | null;
     companies: { name: string; siret: string | null };
   } | null;
@@ -102,6 +104,11 @@ Deno.serve(async (req) => {
 
       case 'send_code': {
         if (!brevoConfigured()) return json(503, { error: 'Envoi de SMS indisponible' });
+        const owner = await portal(db, token);
+        if (!owner) return json(404, { error: 'Lien invalide ou expiré' });
+        if (!(await smsQuotaTake(db, owner.company.id))) {
+          return json(429, { error: 'Trop de SMS aujourd’hui : réessayez demain' });
+        }
         const code = newSmsCode();
         const { data: phone, error } = await db.rpc('client_code_set', {
           p_token: token,
@@ -179,7 +186,7 @@ Deno.serve(async (req) => {
         const message = `${p.company.name} : votre PV de réception signé est disponible : ${pageUrl}`;
         const sent: string[] = [];
         if (brevoConfigured() && pageUrl && p.link.purpose === 'client') {
-          if (contact?.clients?.phone) {
+          if (contact?.clients?.phone && (await smsQuotaTake(db, p.company.id))) {
             await sendSms(contact.clients.phone, message)
               .then(() => sent.push('sms'))
               .catch(() => undefined);
@@ -213,6 +220,9 @@ Deno.serve(async (req) => {
         const contact = await clientContact(db, link.jobsite_id);
         if (!contact?.clients?.phone)
           return json(400, { error: 'Pas de téléphone pour ce client' });
+        if (!(await smsQuotaTake(db, contact.company_id))) {
+          return json(429, { error: 'Trop de SMS aujourd’hui : réessayez demain' });
+        }
         const pageUrl = String(body.page_url ?? '');
         await sendSms(
           contact.clients.phone,

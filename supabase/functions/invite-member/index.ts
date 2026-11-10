@@ -9,7 +9,7 @@
 // Si l'étape 3 échoue, le compte créé à l'étape 2 est supprimé.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { brevoConfigured, sendSms } from '../_shared/brevo.ts';
+import { brevoConfigured, sendSms, smsQuotaTake } from '../_shared/brevo.ts';
 import { corsHeaders, json } from '../_shared/http.ts';
 
 const ROLES = ['owner', 'admin', 'office', 'lead', 'installer'];
@@ -47,9 +47,14 @@ Deno.serve(async (req) => {
   if (!callerId) return json(401, { error: 'Connexion requise' });
   const { data: caller } = await asCaller
     .from('profiles')
-    .select('role, active, companies ( name )')
+    .select('role, active, company_id, companies ( name )')
     .eq('id', callerId)
-    .maybeSingle<{ role: string; active: boolean; companies: { name: string } | null }>();
+    .maybeSingle<{
+      role: string;
+      active: boolean;
+      company_id: string;
+      companies: { name: string } | null;
+    }>();
   if (!caller?.active || !['admin', 'owner'].includes(caller.role)) {
     return json(403, { error: 'Seuls l’admin et le dirigeant invitent des salariés' });
   }
@@ -79,7 +84,7 @@ Deno.serve(async (req) => {
   // 4. SMS d'invitation
   const link = `preuvio://login?phone=${encodeURIComponent(phone)}`;
   let smsSent = false;
-  if (brevoConfigured()) {
+  if (brevoConfigured() && (await smsQuotaTake(asServer, caller.company_id))) {
     try {
       const company = caller.companies?.name ?? 'votre entreprise';
       await sendSms(

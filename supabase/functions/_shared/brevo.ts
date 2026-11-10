@@ -53,3 +53,16 @@ export async function sendEmail(mail: {
   });
   if (!res.ok) throw new Error(`Brevo a refusé l'envoi (HTTP ${res.status})`);
 }
+
+type Rpc = {
+  rpc: (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => PromiseLike<{ data: unknown; error: unknown }>;
+};
+
+/** Plafond quotidien de SMS de l'entreprise (section 16 : le SMS a un coût direct). */
+export async function smsQuotaTake(db: Rpc, companyId: string): Promise<boolean> {
+  const { data, error } = await db.rpc('sms_quota_take', { p_company: companyId });
+  return !error && data === true;
+}

@@ -1,0 +1,127 @@
+-- Finitions avant pilote (sections 16 et 17, S19) : plafond de SMS, durée de conservation,
+-- effacement des données d'un client.
+
+-- SMS : coût direct, donc plafond par entreprise et par jour (invitations, liens client, codes).
+create table public.sms_usage (
+  company_id uuid not null references public.companies (id),
+  day date not null,
+  sent integer not null default 0,
+  limit_reached_at timestamptz,
+  primary key (company_id, day)
+);
+alter table public.sms_usage enable row level security;
+create trigger a_set_company_id before insert or update on public.sms_usage
+  for each row execute function app.set_company_id();
+create policy sms_usage_select on public.sms_usage for select to authenticated
+  using (company_id = (select app.current_company_id()) and (select app.has_role('admin', 'owner')));
+
+alter table public.companies
+  add column sms_daily_limit integer not null default 60 check (sms_daily_limit between 0 and 1000),
+  -- Conservation des chantiers et photos (section 16) : 10 ans, alignés sur la décennale.
+  add column retention_years integer not null default 10 check (retention_years between 5 and 30);
+
+create function public.sms_quota_take(p_company uuid) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_day date := (now() at time zone 'Europe/Paris')::date;
+  v_ok boolean;
+begin
+  insert into public.sms_usage (company_id, day) values (p_company, v_day)
+    on conflict (company_id, day) do nothing;
+  update public.sms_usage u set sent = u.sent + 1
+    from public.companies c
+    where u.company_id = p_company and u.day = v_day and c.id = p_company
+      and u.sent < c.sms_daily_limit
+    returning true into v_ok;
+  if v_ok then
+    return true;
+  end if;
+  update public.sms_usage set limit_reached_at = coalesce(limit_reached_at, now())
+    where company_id = p_company and day = v_day;
+  return false;
+end $$;
+revoke all on function public.sms_quota_take(uuid) from public, anon, authenticated;
+grant execute on function public.sms_quota_take(uuid) to service_role;
+
+-- L'offre (plafond SMS) n'est pas réglable par l'entreprise elle-même.
+create or replace function app.companies_billing_guard() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if auth.uid() is not null
+     and (new.plan, new.trial_ends_at, new.stripe_customer_id, new.sms_daily_limit)
+         is distinct from (old.plan, old.trial_ends_at, old.stripe_customer_id, old.sms_daily_limit) then
+    raise exception 'Offre gérée par l''abonnement' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+
+-- Droit à l'effacement d'un client (section 16), traité par le bureau de l'entreprise.
+-- Sans chantier : nom, coordonnées et adresse sont effacés. Avec un chantier : la preuve des
+-- travaux est conservée (nom et adresse du chantier, PV), mais le téléphone et l'e-mail sont
+-- effacés, ses liens personnels révoqués, et la fiche marquée « accès restreint ».
+alter table public.clients add column erased_at timestamptz;
+
+-- Le journal d'audit reste en ajout seul, à une exception : l'effacement d'un client y masque
+-- ses données personnelles (et seulement elles), sans supprimer de ligne.
+create function app.redact(p_diff jsonb, p_keys text[]) returns jsonb
+language sql immutable set search_path = '' as $$
+  select coalesce(jsonb_object_agg(k,
+    case
+      when not (k = any (p_keys)) then v
+      when jsonb_typeof(v) = 'object' and v ? 'old'
+        then jsonb_build_object('old', case when v -> 'old' = 'null' then 'null'::jsonb else '"[effacé]"'::jsonb end,
+                                'new', case when v -> 'new' = 'null' then 'null'::jsonb else '"[effacé]"'::jsonb end)
+      when v = 'null' then v
+      else '"[effacé]"'::jsonb
+    end), '{}'::jsonb)
+  from jsonb_each(p_diff) as e(k, v)
+$$;
+
+create function app.audit_log_guard() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if tg_op = 'UPDATE' and coalesce(current_setting('app.erasure', true), '') = 'on'
+     and (to_jsonb(new) - 'diff') = (to_jsonb(old) - 'diff') then
+    return new;
+  end if;
+  raise exception 'Le journal d''audit ne se modifie pas' using errcode = 'P0001';
+end $$;
+drop trigger no_change on public.audit_log;
+create trigger no_change before update or delete on public.audit_log
+  for each row execute function app.audit_log_guard();
+
+create function public.erase_client(p_client uuid) returns text
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_client public.clients;
+  v_kept boolean;
+begin
+  select * into v_client from public.clients
+  where id = p_client and company_id = app.current_company_id();
+  if v_client.id is null or not app.has_role('admin', 'owner') then
+    raise exception 'Réservé à l''admin et au dirigeant' using errcode = '42501';
+  end if;
+  v_kept := exists (select 1 from public.jobsites where client_id = p_client);
+  perform set_config('app.erasure', 'on', true);
+  update public.share_links set revoked_at = coalesce(revoked_at, now())
+  where jobsite_id in (select id from public.jobsites where client_id = p_client);
+  if v_kept then
+    update public.clients set phone = null, email = null, marketing_consent = false, erased_at = now()
+    where id = p_client;
+    update public.audit_log set diff = app.redact(diff, array['phone', 'email'])
+    where table_name = 'clients' and record_id = p_client::text;
+    perform set_config('app.erasure', 'off', true);
+    return 'restreint';
+  end if;
+  update public.clients
+  set full_name = 'Client effacé', phone = null, email = null, address = null, ban_id = null,
+      lat = null, lng = null, marketing_consent = false, erased_at = now()
+  where id = p_client;
+  update public.audit_log
+  set diff = app.redact(diff, array['full_name', 'phone', 'email', 'address', 'ban_id', 'lat', 'lng'])
+  where table_name = 'clients' and record_id = p_client::text;
+  perform set_config('app.erasure', 'off', true);
+  return 'efface';
+end $$;
+revoke all on function public.erase_client(uuid) from public, anon;
+grant execute on function public.erase_client(uuid) to authenticated;
