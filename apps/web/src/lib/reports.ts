@@ -72,7 +72,7 @@ export async function loadReportSources(photoIds: string[], noteIds: string[]) {
           .from('photos')
           .select(
             `id, device_taken_at, server_received_at, lat, lng, gps_accuracy_m, sha256, caption,
-             outside_geofence, ai_result, original_path, thumbnail_path, proof_slots ( instruction )`,
+             outside_geofence, ai_result, original_path, thumbnail_path, proof_slots ( instruction, phase )`,
           )
           .in('id', photoIds)
           .is('deleted_at', null)

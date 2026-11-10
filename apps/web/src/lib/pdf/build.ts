@@ -59,7 +59,7 @@ export type PdfPhotoRow = {
   caption: string | null;
   outside_geofence: boolean;
   ai_result: unknown;
-  proof_slots: { instruction: string } | null;
+  proof_slots: { instruction: string; phase?: string | null } | null;
 };
 
 export type PdfNoteRow = {
@@ -167,7 +167,13 @@ export function buildPdfData(input: {
     equipment:
       report.kind === 'dispute'
         ? []
-        : equipmentFrom(photos.map((p) => ({ label: label(p), ai_result: p.ai_result }))),
+        : equipmentFrom(
+            photos.map((p) => ({
+              label: label(p),
+              ai_result: p.ai_result,
+              phase: p.proof_slots?.phase ?? null,
+            })),
+          ),
     missing: report.kind === 'dispute' ? null : missingProofs(jobsite.proof_slots),
     pv: report.kind === 'completion' ? pvMention(input.signature) : null,
     photos: photos.map((p, i) => ({

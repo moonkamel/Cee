@@ -48,7 +48,11 @@ async function Portal({ params }: { params: PageProps<'/c/[token]'>['params'] })
     ? [...report.sections.summary, ...report.sections.works].map((s) => s.text)
     : [];
   const equipment = equipmentFrom(
-    v.photos.map((p) => ({ label: p.label, ai_result: { verdict: { extracted: p.extracted } } })),
+    v.photos.map((p) => ({
+      label: p.label,
+      phase: p.phase,
+      ai_result: { verdict: { extracted: p.extracted } },
+    })),
   );
   const rge = rgeMention(v.company.rge);
   const tel = v.company.phone?.replace(/[^\d+]/g, '');

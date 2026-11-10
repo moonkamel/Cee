@@ -156,3 +156,17 @@ describe('données du chantier dans le PDF', () => {
     ).toEqual(['Façade', 'Plaque', 'Régulateur']);
   });
 });
+
+describe('équipements posés', () => {
+  it('une plaque prise « avant » est l’ancien équipement, pas un équipement posé', async () => {
+    const { equipmentFrom } = await import('.');
+    const plate = (brand: string, phase: string) => ({
+      label: brand,
+      phase,
+      ai_result: { verdict: { extracted: { brand, model: 'M', serial_number: 'S' } } },
+    });
+    expect(equipmentFrom([plate('De Dietrich', 'avant'), plate('Atlantic', 'apres')])).toEqual([
+      { label: 'Atlantic', brand: 'Atlantic', model: 'M', serialNumber: 'S' },
+    ]);
+  });
+});

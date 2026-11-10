@@ -223,7 +223,10 @@ export async function buildExport(exportId: string): Promise<{ ok: boolean; erro
       company,
       photos: proofPhotos.map((p) => ({
         ...p,
-        proof_slots: { instruction: slotById.get(p.proof_slot_id)!.instruction },
+        proof_slots: {
+          instruction: slotById.get(p.proof_slot_id)!.instruction,
+          phase: slotById.get(p.proof_slot_id)!.phase,
+        },
       })),
       notes: [],
       images: thumbs,

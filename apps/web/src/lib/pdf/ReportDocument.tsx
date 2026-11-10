@@ -137,7 +137,7 @@ const s = StyleSheet.create({
     fontSize: 8,
     color: ink['text-muted'],
   },
-  verify: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xl },
+  verify: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
   qr: { width: 72, height: 72 },
   // Largeur utile moins le QR code : un texte « flex » déborde de la marge dans react-pdf.
   verifyText: { width: 420 },
@@ -211,6 +211,20 @@ export function ReportDocument({ data }: { data: ReportPdfData }) {
           {data.jobsite.quote ? <Text>Devis : {data.jobsite.quote}</Text> : null}
         </View>
 
+        {/* En haut de la page de garde : jamais rejeté seul sur une page vide. */}
+        {data.qrDataUrl ? (
+          <View style={s.verify} wrap={false}>
+            <Image style={s.qr} src={data.qrDataUrl} />
+            <View style={s.verifyText}>
+              <Text style={{ fontWeight: 700 }}>Vérifier ce document</Text>
+              <Text style={s.muted}>
+                Scannez le code ou ouvrez {data.verifyUrl} : la page indique l’empreinte du document
+                d’origine et permet de comparer ce fichier.
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         {data.sections.map((section) => (
           <View key={section.title} wrap={false}>
             <Text style={s.h2}>{section.title}</Text>
@@ -275,18 +289,6 @@ export function ReportDocument({ data }: { data: ReportPdfData }) {
           </View>
         ) : null}
 
-        {data.qrDataUrl ? (
-          <View style={s.verify} wrap={false}>
-            <Image style={s.qr} src={data.qrDataUrl} />
-            <View style={s.verifyText}>
-              <Text style={{ fontWeight: 700 }}>Vérifier ce document</Text>
-              <Text style={s.muted}>
-                Scannez le code ou ouvrez {data.verifyUrl} : la page indique l’empreinte du document
-                d’origine et permet de comparer ce fichier.
-              </Text>
-            </View>
-          </View>
-        ) : null}
         <Footer data={data} />
       </Page>
 

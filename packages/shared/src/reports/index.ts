@@ -153,10 +153,12 @@ export type Equipment = {
 
 /** Équipements posés, lus par l'IA sur les plaques (une ligne par plaque lisible). */
 export function equipmentFrom(
-  photos: readonly { label: string; ai_result: unknown }[],
+  photos: readonly { label: string; ai_result: unknown; phase?: string | null }[],
 ): Equipment[] {
   const seen = new Set<string>();
   return photos.flatMap((p) => {
+    // Plaque prise « avant » : l'ancien équipement déposé, pas un équipement posé.
+    if (p.phase === 'avant') return [];
     const ex = (p.ai_result as { verdict?: { extracted?: Record<string, string | null> } } | null)
       ?.verdict?.extracted;
     const item = {
